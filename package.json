@@ -1,0 +1,12 @@
+{
+  "name": "primr",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA für Training, Schlaf und Aufgaben im Wechselschichtdienst",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node test/run.js",
+    "check": "node --check js/main.js"
+  }
+}
