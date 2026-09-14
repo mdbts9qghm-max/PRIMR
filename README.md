@@ -35,21 +35,42 @@ Herzfrequenzerholung nach einer Minute im Verlauf.
 
 ## Das Schichtmodell
 
-Der Zyklus ist eine Folge aus `T` (Tagschicht 07:00–19:00, Dienstbeginn 06:45),
-`N` (Nachtschicht 19:00–07:00, Dienstbeginn 18:45) und frei. Alles andere leitet
-die App daraus ab:
+Der Dienstplan läuft in einem Fünferblock, siebenmal wiederholt – das ergibt die
+35 Tage des Zyklus:
 
-| Tagtyp | Erkannt an | Schlaf |
-|---|---|---|
-| Tagschicht | `T` | 23:30 – 05:30 |
-| Nachtschicht | `N` nach einem Nicht-`N` | auf 08:00, Vorschlaf 15:00–17:30, danach ab 08:00 ins Bett |
-| Nachtschicht Folgetag | `N` nach `N` | 08:00 – 14:00, optional 60 min vor der Schicht |
-| Schlaftag | frei direkt nach `N` | 08:00 – 14:00 und wieder ab 00:00 |
-| Frei 2 | frei direkt vor `T` | 22:00 – 05:30 |
-| Frei 1 | jeder andere freie Tag | 23:30 – 08:00 |
+```
+T   N   Ü   DF  DF     T   N   Ü   DF  DF     …  (7 ×)
+```
 
-Eingetragen wird der Zyklus unter *Einstellungen → Schichtplan*: jeden der 35
-Tage antippen, bis er stimmt, dann angeben, der wievielte Zyklustag heute ist.
+Gespeichert wird nur, ob ein Tag Tagschicht (`T`), Nachtschicht (`N`) oder
+dienstfrei (`F`) ist. Ü und die Unterscheidung der beiden DF-Tage ergeben sich
+aus der Lage im Block:
+
+| Tagtyp | Erkannt an | Schlaf davor | Schlaf danach |
+|---|---|---|---|
+| T · Tagschicht | `T` | 7,5 h (22:00 – 05:30) | 23:30 – 08:00 |
+| N · Nachtschicht | `N` | 8,5 h (23:30 – 08:00) | ab 08:00, dazu Vorschlaf 15:00–17:30 |
+| Ü · nach der Nacht | frei direkt nach `N` | 6 h (08:00 – 14:00) | ab 00:00, 8 h |
+| DF · erster freier Tag | frei, nächster Tag nicht `T` | 8 h (00:00 – 08:00) | 23:30 – 08:00 |
+| DF · vor der Tagschicht | frei, nächster Tag ist `T` | 8,5 h (23:30 – 08:00) | 22:00 – 05:30 |
+
+Die App unterscheidet dabei streng zwischen **Schlaf davor** – der Nacht, die
+heute früh geendet hat und die WHOOP beim Check-in meldet – und **Schlaf
+danach**, dem Fenster, das heute Abend beginnt. Nur der erste Wert ist der
+Maßstab für die Bereitschaft von heute. Am Ü-Tag sind das sechs Stunden, nicht
+die vierzehn, die über den ganzen Tag verteilt zusammenkommen.
+
+Eingerichtet wird das mit einem einzigen Tipp: unter *Einstellungen →
+Schichtplan* auswählen, welchen Dienst man heute hat. Damit liegt der ganze
+Zyklus auf dem Kalender. Der 35-Tage-Raster lässt sich dort auch von Hand
+ändern, falls sich der Dienstplan grundsätzlich ändert.
+
+### Zusatzdienste
+
+Kurzfristig angeordnete Dienste, Tausch oder Urlaub werden pro Tag
+überschrieben: im Trainings-Tab den Tag öffnen und dort den Dienst ändern. Der
+Zyklus selbst bleibt unberührt, und die Planung rechnet ab sofort mit dem
+geänderten Tag.
 
 ## Wie der Trainingsplan entsteht
 
@@ -63,7 +84,8 @@ sieben Tage vollständig und bewertet jede:
 - Der Longrun liegt bevorzugt an freien Tagen, sonst am Vormittag vor der Nacht.
 - Zwei harte Einheiten an aufeinanderfolgenden Tagen kosten stark Punkte.
 - Longrun und intensive Einheit werden auseinandergezogen.
-- Eine Einheit muss in das Zeitfenster des Tages passen.
+- Eine Einheit muss in das Zeitfenster des Tages passen. Bei Krafteinheiten
+  zählt die Anfahrt zum Gym doppelt mit; Läufe starten an der Haustür.
 - An einem freien Tag dürfen zwei lockere Einheiten stehen (ein Lauf plus Kraft) –
   sonst gehen in Wochen mit zwei Tagschichten keine sechs Einheiten in fünf
   nutzbare Tage.
@@ -92,15 +114,21 @@ an physiologischen Markern.
 
 ## Bereitschaft
 
-Aus dem Check-in wird ein Wert von 0 bis 100: Recovery (42 %),
-Schlaf-Performance (18 %), Schlafdauer gegen das Tagessoll (14 %), HRV (14 %),
-Ruhepuls (12 %) und das eigene Muskelgefühl (10 %). HRV und Ruhepuls werden
-gegen den eigenen 14-Tage-Schnitt verrechnet, nicht gegen Normwerte, und fließen
-deshalb erst nach einigen Check-ins ein.
+Der Check-in fragt drei Werte ab – Recovery, Schlaf und HRV – plus das eigene
+Muskelgefühl. Ruhepuls, Schlaf-Performance und Strain sind optional und machen
+den Wert nur genauer.
+
+Daraus wird ein Wert von 0 bis 100: Recovery (42 %), Schlaf-Performance (18 %),
+Schlafdauer gegen das Soll des Tages (14 %), HRV (14 %), Ruhepuls (12 %) und
+Muskelgefühl (10 %). Fehlende Werte werden nicht geschätzt, sondern aus der
+Gewichtung herausgerechnet. HRV und Ruhepuls vergleicht die App gegen den
+eigenen 14-Tage-Schnitt statt gegen Normwerte und lässt sie deshalb erst
+einfließen, wenn dieser Schnitt existiert.
 
 Dazu kommen Korrekturen: eine 7-Tage-Last deutlich über dem 28-Tage-Schnitt senkt
-den Wert, eine ruhige Woche hebt ihn leicht, die zweite Nacht in Folge kostet
-Punkte.
+den Wert, eine ruhige Woche hebt ihn leicht, eine zweite Nacht in Folge kostet
+Punkte. Das Lastverhältnis bleibt leer, solange weniger als zwölf Tage im
+Logbuch stehen – vorher wäre es eine Einheit gegen lauter Nullen.
 
 | Wert | Wirkung auf das Training |
 |---|---|
@@ -115,7 +143,7 @@ Punkte.
 index.html            Hülle
 css/app.css           Design-Tokens und Komponenten
 js/core/              Rechenkerne, ohne DOM und ohne Browser testbar
-  shift.js            35-Tage-Zyklus und Tagtypen
+  shift.js            35-Tage-Zyklus, Tagtypen und Zusatzdienste
   sleep.js            Schlaffenster und Routinen
   plan.js             Trainingsplaner und Progression
   library.js          Einheiten-Bibliothek

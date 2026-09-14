@@ -1,173 +1,226 @@
-// Schlaffenster pro Schichttag + Routine-Empfehlungen.
-// Die Zeiten stammen 1:1 aus der Vorgabe; alles andere ist daraus abgeleitet.
+// Schlafmodell. Jeder Tagtyp hat genau zwei feste Zeiten: wann aufgestanden
+// wird und wann es ins Bett geht. Alles andere ergibt sich daraus – vor allem
+// die entscheidende Unterscheidung:
+//
+//   "Schlaf davor"  = die Nacht, die heute früh geendet hat. Das ist der Wert,
+//                     den WHOOP beim Check-in zeigt, und der Maßstab für die
+//                     Bereitschaft von heute.
+//   "Schlaf danach" = das Fenster, das heute Abend beginnt.
+//
+// Beispiel Ü-Tag: WHOOP meldet die sechs Stunden von 08:00 bis 14:00 – nicht
+// die acht Stunden, die abends ab 00:00 noch folgen.
 
-import { minutes, hhmm, durationLabel } from './util.js';
+import { minutes, hhmm, durationLabel, round } from './util.js';
 
-/**
- * Ein Schlafblock: { label, from, to, crossesMidnight, durationMin, kind }
- * kind: 'haupt' | 'morgen' | 'vorschlaf'
- */
-function block(label, from, to, kind) {
-  const f = minutes(from);
-  const t = minutes(to);
-  const dur = t > f ? t - f : 1440 - f + t;
-  return { label, from, to, kind, durationMin: dur, crossesMidnight: t <= f };
+/** Bettzeiten vor Mittag liegen am Folgetag (00:00 bzw. 08:00 nach der Nacht). */
+const NEXT_DAY_BED = 12 * 60;
+
+export const DAY_SLEEP = {
+  tag: {
+    wake: '05:30',
+    bed: '23:30',
+    naps: [],
+  },
+  nacht: {
+    wake: '08:00',
+    bed: '08:00', // am Morgen danach
+    naps: [{ label: 'Vorschlaf', from: '15:00', to: '17:30' }],
+  },
+  nacht_folge: {
+    wake: '14:00',
+    bed: '08:00',
+    naps: [{ label: 'Kurzer Vorschlaf (optional)', from: '16:30', to: '17:30' }],
+  },
+  schlaftag: {
+    wake: '14:00',
+    bed: '00:00',
+    naps: [],
+  },
+  frei_vor_tag: {
+    wake: '08:00',
+    bed: '22:00',
+    naps: [],
+  },
+  frei: {
+    wake: '08:00',
+    bed: '23:30',
+    naps: [],
+  },
+};
+
+function bedOffsetDays(dayKey) {
+  return minutes(DAY_SLEEP[dayKey].bed) < NEXT_DAY_BED ? 1 : 0;
 }
 
-/** Schlafplan für einen Tagtyp. Enthält alle Blöcke, die diesen Tag prägen. */
-export function sleepPlan(dayKey, prevKey) {
+/** Minuten seit Mitternacht des Bezugstags – auch über Tagesgrenzen hinweg. */
+function bedAbsolute(dayKey, dayOffset = 0) {
+  return (dayOffset + bedOffsetDays(dayKey)) * 1440 + minutes(DAY_SLEEP[dayKey].bed);
+}
+
+function wakeAbsolute(dayKey, dayOffset = 0) {
+  return dayOffset * 1440 + minutes(DAY_SLEEP[dayKey].wake);
+}
+
+function span(fromAbs, toAbs) {
+  const dur = toAbs - fromAbs;
+  return dur > 0 ? dur : 0;
+}
+
+/**
+ * Schlafplan eines Tages. prevKey und nextKey bestimmen, wie lang die Nacht
+ * davor und die Nacht danach wirklich sind.
+ */
+export function sleepPlan(dayKey, prevKey = null, nextKey = null) {
+  const self = DAY_SLEEP[dayKey];
+  const prev = prevKey || fallbackPrev(dayKey);
+  const next = nextKey || fallbackNext(dayKey);
+
+  const before = {
+    label: dayKey === 'schlaftag' || dayKey === 'nacht_folge' ? 'Schlaf nach der Nachtschicht' : 'Nacht davor',
+    from: DAY_SLEEP[prev].bed,
+    to: self.wake,
+    durationMin: span(bedAbsolute(prev, -1), wakeAbsolute(dayKey, 0)),
+  };
+
+  const after = {
+    label: dayKey === 'nacht' || dayKey === 'nacht_folge' ? 'Schlaf nach der Schicht' : 'Nacht danach',
+    from: self.bed,
+    to: DAY_SLEEP[next].wake,
+    durationMin: span(bedAbsolute(dayKey, 0), wakeAbsolute(next, 1)),
+  };
+
+  return {
+    wake: self.wake,
+    bed: self.bed,
+    before,
+    after,
+    naps: self.naps.map((n) => ({ ...n, durationMin: span(minutes(n.from), minutes(n.to)) })),
+    summary: summaryFor(dayKey, before, after),
+  };
+}
+
+// Für den Zyklus T · N · Ü · DF · DF: sinnvolle Nachbarn, falls keine
+// übergeben werden (etwa in einer isolierten Vorschau).
+function fallbackPrev(dayKey) {
+  return {
+    tag: 'frei_vor_tag', nacht: 'tag', nacht_folge: 'nacht',
+    schlaftag: 'nacht', frei: 'schlaftag', frei_vor_tag: 'frei',
+  }[dayKey];
+}
+
+function fallbackNext(dayKey) {
+  return {
+    tag: 'nacht', nacht: 'schlaftag', nacht_folge: 'schlaftag',
+    schlaftag: 'frei', frei: 'frei_vor_tag', frei_vor_tag: 'tag',
+  }[dayKey];
+}
+
+function summaryFor(dayKey, before, after) {
+  const h = (b) => durationLabel(b.durationMin);
   switch (dayKey) {
     case 'tag':
-      return {
-        wake: '05:30',
-        bed: '23:30',
-        blocks: [block('Hauptschlaf', '23:30', '05:30', 'haupt')],
-        summary: 'Aufstehen 05:30, Licht aus 23:30.',
-      };
+      return `Aufstehen 05:30 nach ${h(before)}, abends um ${after.from} ins Bett.`;
     case 'nacht':
-      return {
-        wake: '08:00',
-        bed: '08:00',
-        blocks: [
-          block('Vorschlaf', '15:00', '17:30', 'vorschlaf'),
-          block('Schlaf nach der Schicht', '08:00', '14:00', 'morgen'),
-        ],
-        summary: 'Aufstehen wie im Frei (08:00), Vorschlaf 15:00–17:30, nach der Schicht ab 08:00 ins Bett.',
-      };
+      return `Aufstehen 08:00 wie im Frei, Vorschlaf 15:00–17:30, nach der Schicht ab 08:00 ins Bett (${h(after)}).`;
     case 'nacht_folge':
-      return {
-        wake: '14:00',
-        bed: '08:00',
-        blocks: [
-          block('Morgenschlaf', '08:00', '14:00', 'morgen'),
-          block('Kurzer Vorschlaf (optional)', '16:30', '17:30', 'vorschlaf'),
-        ],
-        summary: 'Morgenschlaf 08:00–14:00, danach optional 60 min Nickerchen vor der nächsten Nacht.',
-      };
+      return `Morgenschlaf ${before.from}–${before.to} (${h(before)}), abends wieder in den Dienst.`;
     case 'schlaftag':
-      return {
-        wake: '14:00',
-        bed: '00:00',
-        blocks: [
-          block('Morgenschlaf', '08:00', '14:00', 'morgen'),
-          block('Nachtschlaf', '00:00', '08:00', 'haupt'),
-        ],
-        summary: 'Schlaf 08:00–14:00, abends um 00:00 wieder ins Bett.',
-      };
+      return `Schlaf ${before.from}–${before.to} (${h(before)}), abends um ${after.from} wieder ins Bett (${h(after)}).`;
     case 'frei_vor_tag':
-      return {
-        wake: '08:00',
-        bed: '22:00',
-        blocks: [block('Hauptschlaf', '22:00', '05:30', 'haupt')],
-        summary: 'Aufstehen 08:00, wegen der kommenden Tagschicht schon um 22:00 ins Bett.',
-      };
+      return `Aufstehen 08:00, wegen der kommenden Tagschicht schon um ${after.from} ins Bett (${h(after)}).`;
     default:
-      return {
-        wake: '08:00',
-        bed: '23:30',
-        blocks: [block('Hauptschlaf', '23:30', '08:00', 'haupt')],
-        summary: 'Aufstehen 08:00, Licht aus 23:30.',
-      };
+      return `Aufstehen 08:00 nach ${h(before)}, Licht aus um ${after.from}.`;
   }
-}
-
-/** Soll-Schlafmenge des Tages in Stunden (Summe der Hauptblöcke). */
-export function sleepTargetHours(dayKey) {
-  const plan = sleepPlan(dayKey);
-  const total = plan.blocks
-    .filter((b) => b.kind !== 'vorschlaf')
-    .reduce((a, b) => a + b.durationMin, 0);
-  return Math.round((total / 60) * 10) / 10;
-}
-
-/** Koffein-Stopp: 8 h vor dem nächsten längeren Schlafblock. */
-export function caffeineCutoff(dayKey) {
-  const plan = sleepPlan(dayKey);
-  const main = plan.blocks.find((b) => b.kind !== 'vorschlaf') || plan.blocks[0];
-  return hhmm(minutes(main.from) - 8 * 60);
-}
-
-/** Letzte große Mahlzeit: 3 h vor dem Hauptschlaf. */
-export function lastMealCutoff(dayKey) {
-  const plan = sleepPlan(dayKey);
-  const main = plan.blocks.find((b) => b.kind !== 'vorschlaf') || plan.blocks[0];
-  return hhmm(minutes(main.from) - 3 * 60);
-}
-
-/** Bildschirm/helles Licht aus: 60 min vor dem Hauptschlaf. */
-export function screensOff(dayKey) {
-  const plan = sleepPlan(dayKey);
-  const main = plan.blocks.find((b) => b.kind !== 'vorschlaf') || plan.blocks[0];
-  return hhmm(minutes(main.from) - 60);
 }
 
 /**
- * Morgenroutine: was direkt nach dem Aufstehen den Rhythmus stabilisiert.
- * Bewusst kurz gehalten – drei bis fünf Punkte, die wirklich zählen.
+ * Sollwert für die Bereitschaft: die Nacht, die heute früh geendet hat.
+ * Genau diese Zahl meldet WHOOP beim Check-in.
  */
+export function sleepTargetHours(dayKey, prevKey = null) {
+  return round(sleepPlan(dayKey, prevKey).before.durationMin / 60, 1);
+}
+
+/** Koffein-Stopp: acht Stunden vor dem heutigen Schlafbeginn. */
+export function caffeineCutoff(dayKey) {
+  return hhmm(minutes(DAY_SLEEP[dayKey].bed) - 8 * 60);
+}
+
+/** Letzte große Mahlzeit: drei Stunden vorher. */
+export function lastMealCutoff(dayKey) {
+  return hhmm(minutes(DAY_SLEEP[dayKey].bed) - 3 * 60);
+}
+
+/** Bildschirme und helles Licht: eine Stunde vorher. */
+export function screensOff(dayKey) {
+  return hhmm(minutes(DAY_SLEEP[dayKey].bed) - 60);
+}
+
+/** Morgenroutine – die ersten Minuten entscheiden über den ganzen Tag. */
 export function morningRoutine(dayKey) {
+  const wake = DAY_SLEEP[dayKey].wake;
+  const at = (offset) => hhmm(minutes(wake) + offset);
   const base = [
-    { time: '+0 min', text: 'Sofort 400–500 ml Wasser mit einer Prise Salz.' },
-    { time: '+10 min', text: '10–20 min Tageslicht ins Auge – draußen, ohne Sonnenbrille.' },
+    { time: at(5), text: 'Sofort 400–500 ml Wasser mit einer Prise Salz.' },
+    { time: at(15), text: '10–20 min Tageslicht ins Auge – draußen, ohne Sonnenbrille.' },
   ];
+
   switch (dayKey) {
     case 'tag':
       return [
-        { time: '05:30', text: 'Wecker nicht snoozen – bei 05:30 direkt aufstehen, sonst kippt der ganze Tag.' },
+        { time: wake, text: 'Nicht snoozen. Bei 05:30 direkt aufstehen, sonst kippt der ganze Tag.' },
         ...base,
-        { time: '05:45', text: '5 min Mobility: Hüfte, Brustwirbelsäule, Sprunggelenk. Wach werden statt aufwärmen.' },
-        { time: '06:00', text: 'Koffein erst 60–90 min nach dem Aufstehen, dafür wirkt es länger.' },
+        { time: at(20), text: '5 min Mobility: Hüfte, Brustwirbelsäule, Sprunggelenk. Wach werden statt aufwärmen.' },
+        { time: at(60), text: 'Koffein erst jetzt – 60 bis 90 min nach dem Aufstehen wirkt es länger und kostet den Abend nicht.' },
       ];
     case 'nacht':
       return [
-        { time: '08:00', text: 'Normal aufstehen wie im Frei – nicht ausschlafen, sonst klappt der Vorschlaf nicht.' },
+        { time: wake, text: 'Aufstehen wie im Frei. Nicht ausschlafen – sonst klappt der Vorschlaf um 15:00 nicht.' },
         ...base,
-        { time: '09:00', text: 'Training ins Vormittagsfenster legen, mindestens 4 h vor dem Vorschlaf.' },
-        { time: '14:30', text: 'Raum abdunkeln, kühl stellen, Handy weg – Vorschlaf ab 15:00.' },
+        { time: '09:00', text: 'Wenn Training ansteht, jetzt. Mindestens vier Stunden Abstand zum Vorschlaf.' },
+        { time: '14:30', text: 'Raum abdunkeln, kühl stellen, Handy aus dem Zimmer. Vorschlaf ab 15:00.' },
       ];
     case 'nacht_folge':
       return [
-        { time: '14:00', text: 'Nach dem Morgenschlaf direkt raus ins Tageslicht, sonst bleibt der Kopf zäh.' },
+        { time: wake, text: 'Nach dem Morgenschlaf direkt raus ins Tageslicht, sonst bleibt der Kopf zäh.' },
         ...base,
-        { time: '14:30', text: 'Richtige Mahlzeit statt Snack – die Nacht ist lang.' },
+        { time: at(30), text: 'Richtige Mahlzeit statt Snack – die Nacht ist lang.' },
       ];
     case 'schlaftag':
       return [
-        { time: '14:00', text: 'Aufstehen, auch wenn es schwerfällt. Länger schlafen verschiebt die Nacht.' },
+        { time: wake, text: 'Aufstehen, auch wenn es schwerfällt. Länger schlafen verschiebt die Nacht um 00:00.' },
         ...base,
-        { time: '14:30', text: '20–30 min zügig draußen gehen – das ist der stärkste Reset für den Rhythmus.' },
-        { time: '15:00', text: 'Kein Koffein mehr ab jetzt, du gehst um 00:00 ins Bett.' },
+        { time: at(30), text: '20–30 min zügig draußen gehen. Der stärkste Reset nach einer durchwachten Nacht.' },
+        { time: caffeineCutoff('schlaftag'), text: 'Ab hier kein Koffein mehr – du gehst heute um 00:00 ins Bett.' },
       ];
     default:
       return [
-        { time: '08:00', text: 'Feste Aufstehzeit halten, auch im Frei. Der Anker für den ganzen Zyklus.' },
+        { time: wake, text: 'Feste Aufstehzeit halten, auch im Frei. Der Anker für den ganzen Zyklus.' },
         ...base,
-        { time: '08:30', text: 'Proteinreiches Frühstück, 30–40 g – stützt die Regeneration vom Vortag.' },
+        { time: at(30), text: 'Proteinreiches Frühstück, 30–40 g – stützt die Regeneration vom Vortag.' },
       ];
   }
 }
 
-/** Abendroutine, rückwärts vom Hauptschlaf gerechnet. */
+/** Abendroutine, rückwärts vom heutigen Schlafbeginn gerechnet. */
 export function eveningRoutine(dayKey) {
-  const plan = sleepPlan(dayKey);
-  const main = plan.blocks.find((b) => b.kind !== 'vorschlaf') || plan.blocks[0];
-  const bed = minutes(main.from);
-  const at = (offset) => hhmm(bed + offset);
-
   if (dayKey === 'nacht' || dayKey === 'nacht_folge') {
     return [
-      { time: '05:30', text: 'Letzte Stunden der Schicht: Licht dimmen wo möglich, kein Koffein mehr seit 00:00.' },
+      { time: '00:00', text: 'Letztes Koffein der Schicht. Alles später frisst den Morgenschlaf.' },
+      { time: '05:30', text: 'Licht dimmen wo möglich. Der Körper soll ab jetzt Richtung Schlaf kippen.' },
       { time: '07:00', text: 'Heimweg mit Sonnenbrille – Morgenlicht würde dich wach schalten.' },
       { time: '07:30', text: 'Leichte Mahlzeit, nichts Schweres. Danach warm duschen.' },
       { time: '08:00', text: 'Raum komplett dunkel, 17–19 °C, Ohrstöpsel. Handy außer Reichweite.' },
     ];
   }
 
+  const bed = minutes(DAY_SLEEP[dayKey].bed);
+  const at = (offset) => hhmm(bed + offset);
   return [
-    { time: caffeineCutoff(dayKey), text: 'Ab hier kein Koffein mehr – acht Stunden vor dem Hauptschlaf.' },
-    { time: at(-180), text: 'Letzte große Mahlzeit – danach höchstens etwas Leichtes.' },
+    { time: caffeineCutoff(dayKey), text: 'Ab hier kein Koffein mehr.' },
+    { time: lastMealCutoff(dayKey), text: 'Letzte große Mahlzeit – danach höchstens etwas Leichtes.' },
     { time: at(-90), text: 'Licht im Wohnraum runter, warme Farbtemperatur.' },
-    { time: at(-60), text: 'Bildschirme aus. Lesen, Dehnen oder Atemübung 4-7-8.' },
+    { time: screensOff(dayKey), text: 'Bildschirme aus. Lesen, Dehnen oder Atemübung 4-7-8.' },
     { time: at(-20), text: 'Schlafzimmer kühl und dunkel, Tagesabschluss in zwei Sätzen notieren.' },
     { time: at(0), text: 'Licht aus.' },
   ];

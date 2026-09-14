@@ -17,12 +17,20 @@ export function defaultHabits() {
   return [
     h('Tageslicht direkt nach dem Aufstehen', 'schlaf', 'daily', '10–20 min draußen. Der stärkste Taktgeber für deinen Rhythmus im Wechselschichtdienst.'),
     h('3 Liter Wasser', 'ernaehrung', 'daily', 'Über den Tag verteilt. Ein Liter davon vor der ersten Mahlzeit.'),
-    h('Protein-Ziel erreicht', 'ernaehrung', 'daily', '1,8–2,2 g je kg Körpergewicht. Ohne das läuft die Anpassung aus dem Training ins Leere.'),
+    h('Protein-Ziel erreicht', 'ernaehrung', 'daily', 'Bei 80 kg sind das 145–175 g am Tag. Ohne die Menge läuft die Anpassung aus dem Training ins Leere.'),
     h('Koffein-Stopp eingehalten', 'schlaf', 'daily', 'Acht Stunden vor dem Hauptschlaf. Die App zeigt dir die Uhrzeit für heute.'),
     h('Bildschirme 60 min vor dem Bett aus', 'schlaf', 'daily', 'Nicht wegen des blauen Lichts, sondern weil der Kopf sonst nicht runterfährt.'),
     h('10 min Mobility', 'bewegung', 'daily', 'Hüfte, Brustwirbelsäule, Sprunggelenk. Auch an Schichttagen machbar.'),
     h('Tagesabschluss notiert', 'kopf', 'daily', 'Zwei Sätze: Was lief gut, was steht morgen an. Nimmt Druck vom Einschlafen.'),
+    shiftHabit('Tasche für die Nachtschicht gepackt', 'alltag', ['nacht'],
+      'Essen, Wasser, Sonnenbrille für den Heimweg. Am Morgen danach denkst du an nichts mehr.'),
+    shiftHabit('Schlafzimmer für den Morgenschlaf vorbereitet', 'schlaf', ['nacht'],
+      'Verdunkeln, kühl stellen, Ohrstöpsel bereitlegen – bevor du in die Schicht gehst.'),
   ];
+}
+
+function shiftHabit(title, category, shiftDays, note) {
+  return { ...h(title, category, 'shift', note), shiftDays };
 }
 
 function h(title, category, repeat, note) {

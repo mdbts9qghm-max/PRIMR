@@ -26,15 +26,26 @@ export function shiftKeyFor(isoDate) {
   return shiftDay(store.get().shift, isoDate).key;
 }
 
+export function shiftDayFor(isoDate) {
+  return shiftDay(store.get().shift, isoDate);
+}
+
+/** Schlafsoll eines beliebigen Tages – braucht den Vortag für die Nachtlänge. */
+export function sleepTargetFor(isoDate) {
+  const d = shiftDay(store.get().shift, isoDate);
+  return sleepTargetHours(d.key, d.prevKey);
+}
+
 export function build(isoDate = todayIso()) {
   const s = store.get();
   const day = shiftDay(s.shift, isoDate);
   const win = trainingWindow(day.key);
-  const sleep = sleepPlan(day.key);
+  const sleep = sleepPlan(day.key, day.prevKey, day.nextKey);
+  const sleepTarget = sleepTargetHours(day.key, day.prevKey);
   const checkin = s.checkins.find((c) => c.date === isoDate) || null;
   const base = baselines(s.checkins, isoDate);
   const load = loadBalance(s.log, isoDate);
-  const result = checkin ? readiness(checkin, base, day.key, load) : null;
+  const result = checkin ? readiness(checkin, base, day.key, load, sleepTarget) : null;
   const directive = trainingDirective(result ? result.score : null, day.key);
 
   const plan = weekPlan(isoDate);
@@ -51,10 +62,12 @@ export function build(isoDate = todayIso()) {
     state: s,
     ui: s.ui,
     shiftKeyFor,
+    shiftDayFor,
+    sleepTargetFor,
     day,
     window: win,
     sleep,
-    sleepTarget: sleepTargetHours(day.key),
+    sleepTarget,
     caffeine: caffeineCutoff(day.key),
     screens: screensOff(day.key),
     lastMeal: lastMealCutoff(day.key),
@@ -65,7 +78,7 @@ export function build(isoDate = todayIso()) {
     advice: result
       ? dayAdvice(result, checkin, day.key, base,
         Boolean((adjusted && adjusted.session && adjusted.session.hard)
-          || (adjustedExtra && adjustedExtra.session && adjustedExtra.session.hard)))
+          || (adjustedExtra && adjustedExtra.session && adjustedExtra.session.hard)), sleepTarget)
       : [],
     load,
     plan,

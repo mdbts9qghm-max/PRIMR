@@ -170,7 +170,9 @@ export function render(ctx) {
     <div class="card" data-chart>
       <div class="card__head">
         <h3 class="card__title">Vorbelastung</h3>
-        <span class="card__meta ${acwrTone}">${ctx.load.ratio == null ? 'zu wenig Daten' : `Verhältnis ${ctx.load.ratio}`}</span>
+        <span class="card__meta ${acwrTone}">${ctx.load.ratio == null
+          ? `noch ${Math.max(0, ctx.load.minDays - ctx.load.trackedDays)} Tage sammeln`
+          : `Verhältnis ${ctx.load.ratio}`}</span>
       </div>
       <div class="chart-readout">Belastungspunkte je Tag, letzte 28 Tage. Zum Ablesen antippen.</div>
       ${barChart(bars, {
@@ -191,11 +193,14 @@ export function render(ctx) {
         <div class="metric">
           <div class="metric__label">Verhältnis</div>
           <div class="metric__value ${acwrTone}">${ctx.load.ratio == null ? '–' : ctx.load.ratio}</div>
+          ${ctx.load.ratio == null ? `<div class="metric__delta muted">ab ${ctx.load.minDays} Tagen</div>` : ''}
         </div>
       </div>
       <div class="tiny muted" style="margin-top:10px">
         Die gestrichelte Linie ist dein 28-Tage-Schnitt. Ein Verhältnis zwischen 0,8 und 1,3 ist der Bereich,
-        in dem du dich steigerst, ohne dich zu überfahren. Über 1,45 senkt die App den Bereitschaftswert von sich aus.
+        in dem du dich steigerst, ohne dich zu überfahren. Über 1,45 senkt die App den Bereitschaftswert von
+        sich aus. Solange weniger als ${ctx.load.minDays} Tage im Logbuch stehen, bleibt die Zahl leer – aus
+        einer Einheit gegen lauter Nullen ließe sich nichts ablesen.
       </div>
     </div>
 

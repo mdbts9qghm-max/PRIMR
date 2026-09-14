@@ -93,8 +93,9 @@ export function render(ctx) {
       </div>
       <p class="small secondary" style="margin-top:10px">${esc(ctx.day.note)}</p>
       ${!ctx.state.shift.confirmed ? `<div class="note note--warn" style="margin-top:12px">
-        Der hinterlegte Schichtzyklus ist noch der Platzhalter. Trag deinen echten 35-Tage-Rhythmus ein, sonst plant die App an deinem Dienst vorbei.
-        <div style="margin-top:10px"><button class="btn btn--sm" data-action="open-shift-editor">Schichtplan eintragen</button></div>
+        Die App weiß noch nicht, wo im Block T · N · Ü · DF · DF du heute stehst. Bis dahin ist der
+        angezeigte Dienst geraten.
+        <div style="margin-top:10px"><button class="btn btn--sm" data-action="open-shift-editor">Heutigen Dienst wählen</button></div>
       </div>` : ''}
     </div>
 
@@ -112,8 +113,7 @@ export function render(ctx) {
               <strong class="tone-${r.band.tone}">${esc(r.band.label)}</strong>
             </div>
             <div style="font-size:17px;font-weight:600;margin-top:4px">${esc(r.band.headline)}</div>
-            <div class="tiny muted" style="margin-top:8px">7-Tage-Last ${load.acute}
-              ${load.ratio ? `· Verhältnis ${load.ratio}` : ''}</div>
+            <div class="tiny muted" style="margin-top:8px">7-Tage-Last ${load.acute}${load.ratio ? ` · Verhältnis ${load.ratio}` : ''}</div>
           </div>
         </div>` : ''}
 
@@ -167,10 +167,10 @@ export function render(ctx) {
     <div class="card">
       <div class="card__head">
         <h3 class="card__title">Schlaf heute</h3>
-        <span class="card__meta">${ctx.sleepTarget} h Soll</span>
+        <span class="card__meta">ab ${esc(ctx.sleep.after.from)}</span>
       </div>
       <div class="stack">
-        ${ctx.sleep.blocks.map((b) => `<div class="row row--between">
+        ${[...ctx.sleep.naps, ctx.sleep.after].map((b) => `<div class="row row--between">
           <span class="small">${esc(b.label)}</span>
           <span class="num secondary">${esc(b.from)} – ${esc(b.to)} <span class="muted tiny">(${durationLabel(b.durationMin)})</span></span>
         </div>`).join('')}

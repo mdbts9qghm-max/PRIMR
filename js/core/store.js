@@ -11,19 +11,21 @@ export function defaultState() {
     version: 1,
     profile: {
       name: '',
-      weightKg: null,
+      weightKg: 80,
       onboarded: false,
     },
     shift: {
       cycle: DEFAULT_CYCLE.slice(),
       anchorDate: today(),
       anchorIndex: 0,
-      confirmed: false, // true, sobald der echte Plan hinterlegt wurde
+      overrides: {},     // { 'YYYY-MM-DD': 'T' | 'N' | 'F' } für Zusatzdienste
+      confirmed: false,  // true, sobald der Zyklustag von heute feststeht
     },
     settings: {
       planStart: weekStart(today()),
       startRunMinutes: 130,
       sessionMinutes: 90,
+      gymTravelMinutes: 20,   // einfache Fahrt, zählt bei Krafteinheiten doppelt
       easyPace: 6.4, // min/km, nur für die km-Schätzung
       trainingMax: { squat: null, bench: null, trapbar: null },
       theme: 'dark',
@@ -58,7 +60,7 @@ function migrate(saved) {
     ...base,
     ...saved,
     profile: { ...base.profile, ...saved.profile },
-    shift: { ...base.shift, ...saved.shift },
+    shift: { ...base.shift, ...saved.shift, overrides: { ...base.shift.overrides, ...(saved.shift || {}).overrides } },
     settings: { ...base.settings, ...saved.settings, trainingMax: { ...base.settings.trainingMax, ...(saved.settings || {}).trainingMax } },
     ui: { ...base.ui, ...saved.ui },
   };

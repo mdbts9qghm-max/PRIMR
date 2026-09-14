@@ -3,7 +3,6 @@
 // nicht aus Normwerten – nur der Vergleich mit dir selbst ist aussagekräftig.
 
 import { clamp, mean, round, scale } from './util.js';
-import { sleepTargetHours } from './sleep.js';
 
 export const BANDS = [
   { key: 'gruen', min: 75, label: 'Grün', headline: 'Voll belastbar', tone: 'good' },
@@ -36,7 +35,7 @@ export function baselines(checkins, beforeIso) {
  * Einzelbeiträge, damit die App erklären kann, woher der Wert kommt.
  * Jeder Beitrag: { key, label, weight, points (0-100), value, detail }
  */
-export function components(checkin, base, dayKey) {
+export function components(checkin, base, dayKey, sleepTarget) {
   const out = [];
 
   if (checkin.recovery != null) {
@@ -63,8 +62,8 @@ export function components(checkin, base, dayKey) {
     });
   }
 
-  if (checkin.sleepHours != null) {
-    const target = sleepTargetHours(dayKey);
+  if (checkin.sleepHours != null && sleepTarget) {
+    const target = sleepTarget;
     const ratio = checkin.sleepHours / target;
     out.push({
       key: 'sleepHours',
@@ -119,7 +118,7 @@ function dayLabel(key) {
     tag: 'Tagschicht-Tag',
     nacht: 'Nachtschicht-Tag',
     nacht_folge: 'Nachtschicht-Folgetag',
-    schlaftag: 'Schlaftag',
+    schlaftag: 'Ü-Tag',
     frei_vor_tag: 'freien Tag vor der Tagschicht',
     frei: 'freien Tag',
   }[key] || 'Tag';
@@ -129,16 +128,16 @@ function dayLabel(key) {
  * Gesamtbewertung.
  * load: { acute, chronic, ratio } aus dem Belastungsmodell (optional).
  */
-export function readiness(checkin, base, dayKey, load) {
+export function readiness(checkin, base, dayKey, load, sleepTarget) {
   if (!checkin) return null;
-  const parts = components(checkin, base, dayKey);
+  const parts = components(checkin, base, dayKey, sleepTarget);
   const totalWeight = parts.reduce((a, p) => a + p.weight, 0);
   if (!totalWeight) return null;
 
   let score = parts.reduce((a, p) => a + p.points * p.weight, 0) / totalWeight;
 
   const adjustments = [];
-  if (load && load.ratio != null && load.chronic > 5) {
+  if (load && load.ratio != null) {
     if (load.ratio > 1.45) {
       score -= 9;
       adjustments.push({ label: 'Vorbelastung hoch', delta: -9, detail: `Deine 7-Tage-Last liegt ${round(load.ratio, 2)}× über dem 28-Tage-Schnitt. Das ist der Bereich, in dem Überlastung entsteht.` });
@@ -156,8 +155,9 @@ export function readiness(checkin, base, dayKey, load) {
     adjustments.push({ label: 'Zweite Nacht in Folge', delta: -5, detail: 'Der Morgenschlaf ersetzt keine volle Nacht. Der Körper arbeitet gegen die innere Uhr.' });
   }
 
-  score = clamp(score, 0, 100);
-  return { score: Math.round(score), parts, adjustments, band: band(score) };
+  // Erst runden, dann einordnen – sonst zeigt die App 75 an und nennt es Gelb.
+  const rounded = Math.round(clamp(score, 0, 100));
+  return { score: rounded, parts, adjustments, band: band(rounded) };
 }
 
 /**
@@ -205,14 +205,14 @@ export function trainingDirective(score, dayKey) {
 }
 
 /** Was die Werte für den Alltag bedeuten, nicht nur fürs Training. */
-export function dayAdvice(result, checkin, dayKey, base, hasHardSession) {
+export function dayAdvice(result, checkin, dayKey, base, hasHardSession, sleepTarget) {
   const tips = [];
   if (!result) return tips;
 
-  if (checkin.sleepHours != null && checkin.sleepHours < sleepTargetHours(dayKey) - 1) {
+  if (checkin.sleepHours != null && sleepTarget && checkin.sleepHours < sleepTarget - 1) {
     tips.push({
       label: 'Schlafdefizit',
-      text: `Dir fehlen rund ${round(sleepTargetHours(dayKey) - checkin.sleepHours, 1)} h. Plane heute einen Powernap von 20 min vor 15:00 ein – länger und du landest im Tiefschlaf und wachst zerschlagen auf.`,
+      text: `Dir fehlen rund ${round(sleepTarget - checkin.sleepHours, 1)} h. Plane heute einen Powernap von 20 min vor 15:00 ein – länger und du landest im Tiefschlaf und wachst zerschlagen auf.`,
     });
   }
   if (checkin.hrv != null && base.hrv && checkin.hrv < base.hrv * 0.85) {
@@ -231,6 +231,12 @@ export function dayAdvice(result, checkin, dayKey, base, hasHardSession) {
     tips.push({
       label: 'Gestern war hart',
       text: `Strain ${round(checkin.strain, 1)}. Heute zählt Eiweiß (1,8–2,2 g je kg Körpergewicht) und Kohlenhydrate früh am Tag, damit der Speicher vor der nächsten Einheit wieder voll ist.`,
+    });
+  }
+  if (dayKey === 'schlaftag') {
+    tips.push({
+      label: 'Ü-Tag',
+      text: 'Sechs Stunden Morgenschlaf sind keine volle Nacht, auch wenn sich der Nachmittag gut anfühlt. Heute zählt, dass du um 00:00 wirklich im Bett liegst – daran hängt der ganze Rest des Blocks.',
     });
   }
   if (dayKey === 'nacht' || dayKey === 'nacht_folge') {

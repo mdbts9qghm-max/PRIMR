@@ -6,7 +6,7 @@ import { esc, icon, on, toast, $ } from './ui/dom.js';
 import { wireChartReadout } from './ui/charts.js';
 import { today as todayIso, longDate, shortDate, uid, weekStart, addDays } from './core/util.js';
 import { createTask } from './core/tasks.js';
-import { shiftDay } from './core/shift.js';
+import { shiftDay, DEFAULT_CYCLE } from './core/shift.js';
 
 import * as todayView from './views/today.js';
 import * as trainingView from './views/training.js';
@@ -109,16 +109,17 @@ function welcomeSheet(c) {
       <p class="small secondary">Drei Dinge macht die App:</p>
       <div class="list">
         <div class="list__item"><div class="grow"><strong>Check-in</strong>
-          <div class="small secondary">Du überträgst morgens sechs WHOOP-Werte. Daraus wird deine Bereitschaft.</div></div></div>
+          <div class="small secondary">Du überträgst morgens drei WHOOP-Werte: Recovery, Schlaf, HRV. Daraus wird deine Bereitschaft.</div></div></div>
         <div class="list__item"><div class="grow"><strong>Trainingsplan</strong>
-          <div class="small secondary">Drei Läufe, drei Krafteinheiten je Woche – platziert nach Schicht, Erholung und Vorbelastung.</div></div></div>
+          <div class="small secondary">Drei Läufe, drei Krafteinheiten je Woche – platziert nach Dienst, Erholung und Vorbelastung.</div></div></div>
         <div class="list__item"><div class="grow"><strong>Schlaf und Aufgaben</strong>
-          <div class="small secondary">Feste Schlaffenster je Schichttag, dazu Routinen und tägliche Gewohnheiten.</div></div></div>
+          <div class="small secondary">Feste Schlaffenster je Diensttag, dazu Routinen und tägliche Gewohnheiten.</div></div></div>
       </div>
     </div>
     <div class="card">
-      <div class="note note--warn">Zuerst brauchst du deinen echten Schichtzyklus. Ohne ihn plant die App an deinem Dienst vorbei.</div>
-      <button class="btn btn--primary btn--block" style="margin-top:14px" data-action="open-shift-editor">Schichtplan eintragen</button>
+      <div class="note">Dein Dienstplan ist hinterlegt: <strong>T · N · Ü · DF · DF</strong>, siebenmal –
+      die 35 Tage des Zyklus. Die App muss nur noch wissen, wo im Block du heute stehst.</div>
+      <button class="btn btn--primary btn--block" style="margin-top:14px" data-action="open-shift-editor">Heutigen Dienst wählen</button>
       <button class="btn btn--ghost btn--block" style="margin-top:8px" data-action="skip-welcome">Erst mal ansehen</button>
     </div>
   </div>`;
@@ -214,6 +215,10 @@ function saveSettings(form) {
     s.settings.startRunMinutes = num(form, 'startRunMinutes') || s.settings.startRunMinutes;
     s.settings.sessionMinutes = num(form, 'sessionMinutes') || s.settings.sessionMinutes;
     s.settings.easyPace = num(form, 'easyPace') || s.settings.easyPace;
+    const travel = num(form, 'gymTravelMinutes');
+    if (travel != null) s.settings.gymTravelMinutes = travel;
+    const weight = num(form, 'weightKg');
+    if (weight != null) s.profile.weightKg = weight;
     s.settings.trainingMax = {
       squat: num(form, 'tm_squat'),
       bench: num(form, 'tm_bench'),
@@ -407,9 +412,9 @@ const actions = {
     render();
   },
 
-  'save-shift': () => {
-    const input = document.getElementById('f-anchor');
-    const idx = Math.max(1, Math.min(store.get().shift.cycle.length, Number(input.value) || 1)) - 1;
+  // Der Zyklus steht fest – es fehlt nur, wo im Fünferblock heute liegt.
+  'set-today-position': (e, el) => {
+    const idx = Number(el.dataset.index);
     store.update((s) => {
       s.shift.anchorDate = todayIso();
       s.shift.anchorIndex = idx;
@@ -423,9 +428,26 @@ const actions = {
     render();
   },
 
-  'reset-cycle': () => {
-    store.update((s) => { s.shift.cycle = new Array(s.shift.cycle.length).fill('F'); });
+  'set-override': (e, el) => {
+    const { date, raw } = el.dataset;
+    store.update((s) => { s.shift.overrides[date] = raw; });
     ctxBuilder.invalidate();
+    toast('Dienst für diesen Tag geändert');
+    app.sheet = null;
+    render();
+  },
+
+  'clear-override': (e, el) => {
+    store.update((s) => { delete s.shift.overrides[el.dataset.date]; });
+    ctxBuilder.invalidate();
+    toast('Auf den Regeldienst zurückgesetzt');
+    render();
+  },
+
+  'reset-cycle': () => {
+    store.update((s) => { s.shift.cycle = DEFAULT_CYCLE.slice(); });
+    ctxBuilder.invalidate();
+    toast('Zyklus zurückgesetzt');
     render();
   },
 

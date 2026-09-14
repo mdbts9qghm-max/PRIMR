@@ -209,13 +209,18 @@ export function planWeek(isoDate, shiftConfig, settings) {
   }
 
   // Vorab für jeden Tag prüfen, welche Einheit zeitlich überhaupt hineinpasst.
+  // Laufen startet an der Haustür, Krafttraining kostet zusätzlich die Fahrt
+  // zum Gym und zurück.
+  const travel = (settings.gymTravelMinutes || 0) * 2;
   const candidates = days.map((d) => {
-    const room = Math.min(d.window.minutesFree, settings.sessionMinutes || 90);
+    const cap = settings.sessionMinutes || 90;
     const out = {};
     SLOTS.forEach((slot) => {
       if (FIT[slot][d.key] < 0) return;
-      const s = buildSession(slot, w, prog, settings, room);
-      if (s.durationMin <= room + 10) out[slot] = s;
+      const room = Math.min(d.window.minutesFree - (slot.startsWith('kraft') ? travel : 0), cap);
+      if (room < 20) return;
+      const session = buildSession(slot, w, prog, settings, room);
+      if (session.durationMin <= room + 10) out[slot] = session;
     });
     return out;
   });
@@ -322,22 +327,43 @@ export function applyDirective(entry, directive) {
   };
 }
 
-/** Akute (7 Tage) und chronische (28 Tage) Trainingslast aus dem Logbuch. */
+/**
+ * Akute (7 Tage) und chronische (28 Tage) Trainingslast aus dem Logbuch.
+ *
+ * Das Verhältnis der beiden ist erst aussagekräftig, wenn genug Wochen im
+ * Logbuch stehen. In den ersten Tagen ergäbe es absurde Werte – eine einzige
+ * Einheit stünde gegen einen Schnitt aus fast lauter Nullen. Deshalb meldet
+ * die Funktion so lange `ratio: null` und nennt die Zahl der erfassten Tage.
+ */
+const RATIO_MIN_DAYS = 12;
+
 export function loadBalance(log, isoDate) {
-  const sum = (days) => {
-    let total = 0;
-    for (let i = 0; i < days; i += 1) {
-      const d = addDays(isoDate, -i);
-      total += (log[d] && log[d].load) || 0;
+  let acute = 0;
+  let chronic = 0;
+  let days = 0;
+  let firstEntryAgo = null;
+
+  for (let i = 0; i < 28; i += 1) {
+    const d = addDays(isoDate, -i);
+    const entry = log[d];
+    const value = (entry && entry.load) || 0;
+    chronic += value;
+    if (i < 7) acute += value;
+    if (entry) {
+      days += 1;
+      firstEntryAgo = i;
     }
-    return total;
-  };
-  const acute = sum(7);
-  const chronic = sum(28) / 4;
+  }
+  chronic /= 4;
+
+  const reliable = firstEntryAgo != null && firstEntryAgo + 1 >= RATIO_MIN_DAYS && chronic > 0;
   return {
     acute: Math.round(acute),
     chronic: Math.round(chronic),
-    ratio: chronic > 0 ? round(acute / chronic, 2) : null,
+    days,
+    trackedDays: firstEntryAgo == null ? 0 : firstEntryAgo + 1,
+    minDays: RATIO_MIN_DAYS,
+    ratio: reliable ? round(acute / chronic, 2) : null,
   };
 }
 
