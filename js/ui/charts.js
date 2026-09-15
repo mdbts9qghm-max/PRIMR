@@ -203,3 +203,98 @@ export function wireChartReadout(root) {
     box.addEventListener('pointerleave', () => { out.textContent = base; });
   });
 }
+
+/**
+ * Tagesleiste: ein Balken vom Aufstehen bis zum Aufstehen am nächsten Tag,
+ * darin Dienst, Trainingsfenster, Vorschlaf und Schlaf. Die senkrechte Linie
+ * ist die aktuelle Uhrzeit.
+ */
+export function timelineBar(tl, opts = {}) {
+  const w = 320;
+  const barH = opts.height || 20;
+  const h = barH + 20;
+  const x = (min) => ((min - tl.start) / tl.spanMin) * w;
+  // Beschriftungen am Rand würden abgeschnitten – dort wird links- bzw.
+  // rechtsbündig ausgerichtet statt zentriert.
+  const anchor = (px) => (px < 14 ? 'start' : px > w - 14 ? 'end' : 'middle');
+
+  const segments = tl.segments.map((s) => {
+    const left = x(s.from);
+    const width = Math.max(2, x(s.to) - left - 2);
+    return `<rect x="${round(left, 1)}" y="0" width="${round(width, 1)}" height="${barH}" rx="5"
+              fill="${s.color}" opacity="${s.soft ? 0.55 : 1}"
+              data-mark="1" data-readout="${esc(`${s.label}: ${s.text}`)}"/>`;
+  }).join('');
+
+  const tickMarks = (opts.ticks || []).map((t) => {
+    const px = x(t.at);
+    return `<line x1="${round(px, 1)}" x2="${round(px, 1)}" y1="${barH + 2}" y2="${barH + 5}" stroke="var(--line)" stroke-width="1"/>
+      <text class="axis-label" x="${round(px, 1)}" y="${h - 2}" text-anchor="${anchor(px)}">${esc(t.label)}</text>`;
+  }).join('');
+
+  const now = opts.now != null ? `
+    <line x1="${round(x(opts.now), 1)}" x2="${round(x(opts.now), 1)}" y1="-4" y2="${barH + 4}"
+          stroke="var(--text-primary)" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="${round(x(opts.now), 1)}" cy="-4" r="3" fill="var(--text-primary)"/>` : '';
+
+  // Kein preserveAspectRatio="none": sonst würde die Beschriftung mitgezerrt.
+  return `<svg class="timeline" viewBox="-2 -9 ${w + 4} ${h + 12}"
+            role="img" aria-label="${esc(opts.ariaLabel || 'Tagesverlauf')}">
+            <rect x="0" y="0" width="${w}" height="${barH}" rx="5" fill="var(--surface-3)"/>
+            ${segments}${tickMarks}${now}
+          </svg>`;
+}
+
+/** Beschriftung zur Tagesleiste – ohne sie wären die Farben nicht lesbar. */
+export function timelineLegend(tl) {
+  const seen = new Map();
+  tl.segments.forEach((s) => { if (!seen.has(s.key)) seen.set(s.key, s); });
+  return `<div class="legend">${Array.from(seen.values()).map((s) => `
+    <span class="legend__item">
+      <span class="legend__swatch" style="background:${s.color};opacity:${s.soft ? 0.55 : 1}"></span>
+      ${esc(s.label)} <span class="muted num">${esc(s.text)}</span>
+    </span>`).join('')}</div>`;
+}
+
+/** Kleine Linie ohne Achsen – Kontext für eine große Zahl daneben. */
+export function sparkline(values, opts = {}) {
+  const xs = values.filter((v) => v != null);
+  if (xs.length < 2) return '';
+  const w = opts.width || 96;
+  const h = opts.height || 26;
+  const lo = Math.min(...xs);
+  const hi = Math.max(...xs);
+  const span = hi - lo || 1;
+  const px = (i) => (i / (xs.length - 1)) * (w - 4) + 2;
+  const py = (v) => h - 3 - ((v - lo) / span) * (h - 6);
+  const d = xs.map((v, i) => `${i === 0 ? 'M' : 'L'}${round(px(i), 1)} ${round(py(v), 1)}`).join(' ');
+  const color = opts.color || 'var(--text-muted)';
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img"
+            aria-label="${esc(opts.ariaLabel || 'Verlauf')}">
+            <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="${round(px(xs.length - 1), 1)}" cy="${round(py(xs[xs.length - 1]), 1)}" r="3"
+                    fill="${color}" stroke="var(--surface-1)" stroke-width="1.5"/>
+          </svg>`;
+}
+
+/** Fortschrittsring mit Zahl in der Mitte – kompakter als ein Balken. */
+export function progressRing(value, max, opts = {}) {
+  const size = opts.size || 72;
+  const stroke = opts.stroke || 7;
+  const r = (size - stroke) / 2 - 1;
+  const c = 2 * Math.PI * r;
+  const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  const color = opts.color || 'var(--accent)';
+  return `<svg class="chart" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img"
+            aria-label="${esc(opts.ariaLabel || `${value} von ${max}`)}">
+            <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--surface-3)" stroke-width="${stroke}"/>
+            <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+                    stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - pct)}"
+                    transform="rotate(-90 ${size / 2} ${size / 2})"/>
+            <text x="${size / 2}" y="${size / 2 + 1}" text-anchor="middle" dominant-baseline="middle"
+                  fill="var(--text-primary)" font-size="${size / 3.4}" font-weight="650"
+                  style="font-variant-numeric:tabular-nums">${value}</text>
+            <text x="${size / 2}" y="${size / 2 + size / 4.6}" text-anchor="middle"
+                  fill="var(--text-muted)" font-size="${size / 7}">von ${max}</text>
+          </svg>`;
+}

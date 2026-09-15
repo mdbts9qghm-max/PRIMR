@@ -2,7 +2,7 @@
 // und wie gut die letzten zwei Wochen tatsächlich gelaufen sind.
 
 import { esc } from '../ui/dom.js';
-import { barChart, lineChart } from '../ui/charts.js';
+import { barChart, lineChart, timelineBar, timelineLegend } from '../ui/charts.js';
 import { shiftBadge } from '../ui/components.js';
 import { sleepPlan, morningRoutine, eveningRoutine } from '../core/sleep.js';
 import { addDays, shortDate, weekdayShort, round, durationLabel } from '../core/util.js';
@@ -63,7 +63,19 @@ export function render(ctx) {
       <div class="section-label">Schlaf heute</div>
       <div class="row wrap" style="gap:8px;margin-top:10px">${shiftBadge(ctx.day)}</div>
       <p class="small secondary" style="margin-top:10px">${esc(ctx.sleep.summary)}</p>
-      <div class="divider" style="margin:14px 0"></div>
+
+      <div style="margin-top:16px" data-chart>
+        <div class="chart-readout">Vom Aufstehen bis zum Aufstehen morgen. Zum Ablesen antippen.</div>
+        ${timelineBar(ctx.timeline, {
+          ticks: ctx.timelineTicks,
+          now: ctx.timelineNow,
+          height: 24,
+          ariaLabel: 'Tagesverlauf mit Dienst, Trainingsfenster und Schlaf',
+        })}
+        ${timelineLegend(ctx.timeline)}
+      </div>
+
+      <div class="divider" style="margin:16px 0"></div>
       <div class="stack">
         ${blockRow(ctx.sleep.before, 'heute früh beendet – das ist der Wert aus dem Check-in')}
         ${ctx.sleep.naps.map((n) => blockRow(n, 'Zusatzschlaf, zählt nicht aufs Soll')).join('')}

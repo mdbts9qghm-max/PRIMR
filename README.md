@@ -16,19 +16,25 @@ Danach startet sie im Vollbild und funktioniert offline.
 
 ## Die fünf Tabs
 
-**Heute** – Datum, Schichttag, die eingetragenen WHOOP-Werte und daraus die
-Bereitschaft von 0 bis 100. Hinter „Auswirkungen auf Tag und Training“ steht,
-welcher Wert wie stark eingeflossen ist und was das konkret für heute bedeutet.
-Darunter die vorgeschlagene Einheit und die Aufgaben des Tages.
+**Heute** – Datum, Dienst und die Position im Fünferblock, dann der Tag als
+Zeitstrahl: Dienst, Trainingsfenster und Schlaf nebeneinander, mit einer
+Markierung für die aktuelle Uhrzeit. Darunter die WHOOP-Werte und daraus die
+Bereitschaft von 0 bis 100 mit ihrem Verlauf. Hinter „Auswirkungen auf Tag und
+Training“ steht, welcher Wert wie stark eingeflossen ist und was das konkret
+für heute bedeutet. Es folgen die vorgeschlagene Einheit und die Aufgaben.
 
-**Training** – der Wochenplan, warum jede Einheit an ihrem Tag liegt, die
+**Training** – der Wochenrhythmus als Streifen (Dienst, Belastung, Art der
+Einheit, harte Tage markiert), darunter der Wochenplan im Detail, die
 Zonenverteilung, die Progression und die Vorbelastung der letzten 28 Tage.
 
-**Aufgaben** – tägliche Gewohnheiten und eigene Aufgaben. Eigene Aufgaben können
-einmalig, täglich, an festen Wochentagen oder an bestimmten Schichttagen stehen.
+**Aufgaben** – ein Raster aus Gewohnheit × Tag über zwei Dienstblöcke, mit dem
+Dienst als Kopfzeile: So sieht man, an welchen Schichttagen Gewohnheiten reißen.
+Dazu eigene Aufgaben, die einmalig, täglich, an festen Wochentagen oder an
+bestimmten Schichttagen stehen können.
 
-**Schlaf** – das Schlaffenster für heute, Abend- und Morgenroutine passend zum
-Schichttag, Schlafdauer der letzten 14 Tage und die Fenster der nächsten Woche.
+**Schlaf** – derselbe Zeitstrahl in groß, das Schlaffenster für heute, Abend-
+und Morgenroutine passend zum Diensttag, Schlafdauer der letzten 14 Tage und die
+Fenster der nächsten Woche.
 
 **Werte** – VO2max, Schwellenherzfrequenz, Ruhepuls, HRV und
 Herzfrequenzerholung nach einer Minute im Verlauf.
@@ -162,6 +168,7 @@ js/core/              Rechenkerne, ohne DOM und ohne Browser testbar
   tasks.js            Aufgaben und Gewohnheiten
   store.js            Zustand im localStorage
   context.js          abgeleitete Tagesdaten für die Views
+  timeline.js         der Tag als Zeitstrahl zwischen zwei Aufstehzeiten
 js/ui/                DOM-Helfer, SVG-Diagramme, geteilte Bausteine
 js/views/             die fünf Tabs und die Formulare
 test/run.js           Tests der Rechenkerne

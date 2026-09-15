@@ -2,8 +2,9 @@
 // und die anstehenden Aufgaben – in genau dieser Reihenfolge.
 
 import { esc, icon } from '../ui/dom.js';
-import { readinessRing, meter } from '../ui/charts.js';
-import { sessionCard, shiftBadge } from '../ui/components.js';
+import { readinessRing, meter, timelineBar, timelineLegend, sparkline, progressRing } from '../ui/charts.js';
+import { sessionCard, shiftBadge, blockPosition } from '../ui/components.js';
+import { BLOCK_POSITIONS } from '../core/shift.js';
 import { longDate, round, durationLabel } from '../core/util.js';
 import { taskList } from './tasks.js';
 
@@ -81,6 +82,8 @@ function impactPanel(ctx) {
 export function render(ctx) {
   const r = ctx.readiness;
   const load = ctx.load;
+  const trend = ctx.readinessTrend || [];
+  const doneCount = ctx.doneToday.filter((id) => ctx.tasks.some((t) => t.id === id)).length;
 
   return `
   <div class="view">
@@ -89,9 +92,31 @@ export function render(ctx) {
       <div class="section-label">${esc(longDate(ctx.date))}</div>
       <div class="row wrap" style="gap:8px;margin-top:10px">
         ${shiftBadge(ctx.day)}
-        <span class="chip">Tag ${ctx.day.index + 1} von ${ctx.state.shift.cycle.length}</span>
+        ${ctx.day.overridden ? '<span class="chip">abweichend eingetragen</span>' : ''}
       </div>
       <p class="small secondary" style="margin-top:10px">${esc(ctx.day.note)}</p>
+
+      <div style="margin-top:14px">
+        ${blockPosition(ctx.day, BLOCK_POSITIONS)}
+        <div class="row row--between" style="margin-top:6px">
+          <span class="tiny muted">Block ${Math.floor(ctx.day.index / BLOCK_POSITIONS.length) + 1} von ${Math.round(ctx.state.shift.cycle.length / BLOCK_POSITIONS.length)}</span>
+          <span class="tiny muted">Zyklustag ${ctx.day.index + 1} von ${ctx.state.shift.cycle.length}</span>
+        </div>
+      </div>
+      <div style="margin-top:16px" data-chart>
+        <div class="row row--between" style="margin-bottom:8px">
+          <span class="section-label">Dein Tag</span>
+          <span class="tiny muted num">${esc(ctx.sleep.wake)} → ${esc(ctx.sleep.after.to)} · ${durationLabel(ctx.timeline.spanMin)}</span>
+        </div>
+        <div class="chart-readout">Vom Aufstehen bis zum Aufstehen morgen. Zum Ablesen antippen.</div>
+        ${timelineBar(ctx.timeline, {
+          ticks: ctx.timelineTicks,
+          now: ctx.timelineNow,
+          ariaLabel: 'Tagesverlauf mit Dienst, Trainingsfenster und Schlaf',
+        })}
+        ${timelineLegend(ctx.timeline)}
+      </div>
+
       ${!ctx.state.shift.confirmed ? `<div class="note note--warn" style="margin-top:12px">
         Die App weiß noch nicht, wo im Block T · N · Ü · DF · DF du heute stehst. Bis dahin ist der
         angezeigte Dienst geraten.
@@ -107,12 +132,16 @@ export function render(ctx) {
       ${r ? `
         <div class="row" style="gap:18px;align-items:center">
           <div style="flex:none">${readinessRing(r.score, r.band.tone, r.band.headline)}</div>
-          <div class="grow">
+          <div class="grow" style="min-width:0">
             <div class="row" style="gap:8px">
               <span class="chip__dot tone-${r.band.tone}" style="background:currentColor"></span>
               <strong class="tone-${r.band.tone}">${esc(r.band.label)}</strong>
             </div>
             <div style="font-size:17px;font-weight:600;margin-top:4px">${esc(r.band.headline)}</div>
+            ${trend.length >= 2 ? `<div style="margin-top:10px">
+              ${sparkline(trend.map((t) => t.score), { color: 'var(--text-muted)', ariaLabel: 'Bereitschaft der letzten Tage' })}
+              <div class="tiny muted" style="margin-top:2px">letzte ${trend.length} Check-ins</div>
+            </div>` : ''}
             <div class="tiny muted" style="margin-top:8px">7-Tage-Last ${load.acute}${load.ratio ? ` · Verhältnis ${load.ratio}` : ''}</div>
           </div>
         </div>` : ''}
@@ -153,9 +182,20 @@ export function render(ctx) {
     }) : ''}
 
     <div class="card">
-      <div class="card__head">
-        <h3 class="card__title">Aufgaben heute</h3>
-        <span class="card__meta">${ctx.doneToday.filter((id) => ctx.tasks.some((t) => t.id === id)).length} / ${ctx.tasks.length}</span>
+      <div class="row" style="gap:16px;align-items:center;margin-bottom:6px">
+        <div style="flex:none">${progressRing(doneCount, ctx.tasks.length, {
+          size: 76,
+          color: doneCount === ctx.tasks.length && ctx.tasks.length ? 'var(--good)' : 'var(--accent)',
+          ariaLabel: `${doneCount} von ${ctx.tasks.length} Aufgaben erledigt`,
+        })}</div>
+        <div class="grow">
+          <h3 class="card__title">Aufgaben heute</h3>
+          <div class="tiny muted" style="margin-top:4px">
+            ${ctx.tasks.length === 0 ? 'Für heute steht nichts an.'
+              : doneCount === ctx.tasks.length ? 'Alles abgehakt.'
+                : `${ctx.tasks.length - doneCount} offen`}
+          </div>
+        </div>
       </div>
       ${taskList(ctx.tasks, ctx.doneToday, ctx.date)}
       ${ctx.overdue.length ? `<div class="note note--warn" style="margin-top:12px">

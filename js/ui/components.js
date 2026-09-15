@@ -3,7 +3,7 @@
 import { esc, icon } from './dom.js';
 import { ZONE_COLORS } from './charts.js';
 import { zone, zoneRange } from '../core/zones.js';
-import { durationLabel, weekdayShort, shortDate } from '../core/util.js';
+import { durationLabel, weekdayShort, shortDate, round } from '../core/util.js';
 
 const BADGE_CLASS = {
   tag: 'badge--tag',
@@ -136,4 +136,72 @@ export function dayRow(entry, todayIso, logged) {
           : entry.session.durationMin ? `<span class="tiny muted num">${entry.session.durationMin + (entry.extra ? entry.extra.durationMin : 0)}′</span>` : ''}
       </div>
     </button>`;
+}
+
+const KIND_LABEL = {
+  run: 'Lauf', strength: 'Kraft', mobility: 'Mob.', rest: 'frei',
+};
+
+/**
+ * Wochenrhythmus als Streifen: Dienst oben, geplanter Umfang als Balken,
+ * darunter die Art der Einheit. Ein Punkt markiert harte Tage – daran sieht
+ * man auf einen Blick, ob genug Abstand dazwischen liegt.
+ */
+export function weekStrip(plan, todayIso) {
+  // Höhe der Balken sind Belastungspunkte, nicht Minuten: bei Kraft ist die
+  // Minutenzahl das Zeitfenster, beim Laufen die tatsächliche Dauer – die
+  // beiden nebeneinander zu stellen wäre irreführend.
+  const loadOf = (d) => [d.session, d.extra].filter(Boolean)
+    .reduce((a, s) => a + (s.load || 0), 0);
+  const max = Math.max(20, ...plan.days.map(loadOf));
+
+  return `<div class="weekstrip">${plan.days.map((d) => {
+    const total = loadOf(d);
+    const hard = [d.session, d.extra].filter(Boolean).some((s) => s.hard);
+    const color = d.shift.raw === 'T' ? 'var(--shift-t)'
+      : d.shift.raw === 'N' ? 'var(--shift-n)' : 'var(--shift-f)';
+    const label = KIND_LABEL[d.session.kind] + (d.extra ? '+' : '');
+    const height = total ? Math.max(3, (total / max) * 34) : 2;
+
+    return `<button class="weekstrip__col ${d.date === todayIso ? 'weekstrip__col--today' : ''}"
+              data-action="open-day" data-date="${esc(d.date)}"
+              aria-label="${esc(`${weekdayShort(d.date)} ${shortDate(d.date)}, ${d.shift.label}, ${d.session.title}${d.extra ? ` und ${d.extra.title}` : ''}${hard ? ', harte Einheit' : ''}`)}">
+      <span class="weekstrip__wd">${weekdayShort(d.date)}</span>
+      <span class="weekstrip__shift" style="background:${color}">${esc(d.shift.code)}</span>
+      <span class="weekstrip__hard ${hard ? '' : 'weekstrip__hard--empty'}"></span>
+      <span class="weekstrip__bar">
+        <span class="weekstrip__fill ${total && !hard ? 'weekstrip__fill--soft' : ''}"
+              style="height:${round(height, 1)}px"></span>
+      </span>
+      <span class="weekstrip__kind">${esc(label)}</span>
+    </button>`;
+  }).join('')}</div>`;
+}
+
+export function weekStripLegend() {
+  return `<div class="legend">
+    <span class="legend__item"><span class="legend__swatch" style="background:var(--shift-t)"></span>T · Tagschicht</span>
+    <span class="legend__item"><span class="legend__swatch" style="background:var(--shift-n)"></span>N · Nachtschicht</span>
+    <span class="legend__item"><span class="legend__swatch" style="background:var(--shift-f)"></span>Ü und DF</span>
+    <span class="legend__item"><span class="weekstrip__hard"></span>harte Einheit</span>
+  </div>
+  <div class="tiny muted" style="margin-top:6px">Balkenhöhe: geplante Belastungspunkte. Tippen öffnet den Tag.</div>`;
+}
+
+
+/**
+ * Position im Fünferblock T · N · Ü · DF · DF. Sagt mehr als "Tag 4 von 35":
+ * man sieht, was hinter einem liegt und was als Nächstes kommt.
+ */
+export function blockPosition(day, positions) {
+  const here = day.index % positions.length;
+  return `<div class="blockpos" role="img"
+            aria-label="${esc(`Heute ist ${day.label}, Position ${here + 1} im Fünferblock`)}">
+    ${positions.map((p, i) => {
+      const color = p.code === 'T' ? 'var(--shift-t)' : p.code === 'N' ? 'var(--shift-n)' : 'var(--shift-f)';
+      const cls = i === here ? 'blockpos__cell--now' : i < here ? 'blockpos__cell--past' : '';
+      return `<span class="blockpos__cell ${cls}" ${i === here ? `style="background:${color}"` : ''}
+                title="${esc(p.label)}">${esc(p.code)}</span>`;
+    }).join('')}
+  </div>`;
 }

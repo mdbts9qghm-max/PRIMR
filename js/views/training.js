@@ -3,7 +3,7 @@
 
 import { esc, icon } from '../ui/dom.js';
 import { barChart, stackedBar, ZONE_COLORS } from '../ui/charts.js';
-import { sessionCard, dayRow } from '../ui/components.js';
+import { sessionCard, dayRow, weekStrip, weekStripLegend } from '../ui/components.js';
 import { addDays, weekStart, shortDate, weekdayShort, round, durationLabel } from '../core/util.js';
 import { weekPlan } from '../core/context.js';
 import { progression } from '../core/plan.js';
@@ -74,9 +74,12 @@ export function render(ctx) {
 
     <div class="card">
       <div class="card__head">
-        <h3 class="card__title">Wochenplan</h3>
+        <h3 class="card__title">Wochenrhythmus</h3>
         <span class="card__meta">${plan.runs}× Lauf · ${plan.strength}× Kraft</span>
       </div>
+      ${weekStrip(plan, ctx.date)}
+      ${weekStripLegend()}
+      <div class="divider" style="margin:14px 0 2px"></div>
       <div class="list">
         ${plan.days.map((d) => dayRow(d, ctx.date, ctx.state.log[d.date])).join('')}
       </div>

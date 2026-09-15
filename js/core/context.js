@@ -3,6 +3,7 @@
 
 import * as store from './store.js';
 import { shiftDay, trainingWindow } from './shift.js';
+import { dayTimeline, ticks, nowOffset } from './timeline.js';
 import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff, lastMealCutoff } from './sleep.js';
 import { baselines, readiness, trainingDirective, dayAdvice } from './readiness.js';
 import { planWeek, applyDirective, loadBalance } from './plan.js';
@@ -28,6 +29,30 @@ export function shiftKeyFor(isoDate) {
 
 export function shiftDayFor(isoDate) {
   return shiftDay(store.get().shift, isoDate);
+}
+
+/**
+ * Bereitschaftswerte der letzten Tage – gibt der großen Zahl von heute
+ * einen Verlauf zur Seite.
+ */
+export function readinessTrend(isoDate, n = 14) {
+  const s = store.get();
+  const out = [];
+  for (let i = n - 1; i >= 0; i -= 1) {
+    const d = addDays(isoDate, -i);
+    const checkin = s.checkins.find((c) => c.date === d);
+    if (!checkin) continue;
+    const day = shiftDay(s.shift, d);
+    const r = readiness(
+      checkin,
+      baselines(s.checkins, d),
+      day.key,
+      loadBalance(s.log, d),
+      sleepTargetHours(day.key, day.prevKey),
+    );
+    if (r) out.push({ date: d, score: r.score });
+  }
+  return out;
 }
 
 /** Schlafsoll eines beliebigen Tages – braucht den Vortag für die Nachtlänge. */
@@ -57,9 +82,15 @@ export function build(isoDate = todayIso()) {
     ? applyDirective({ ...entry, session: entry.extra }, directive) : null;
   const logged = s.log[isoDate] || null;
 
+  const tl = dayTimeline(day.key, day.prevKey, day.nextKey);
+
   return {
     date: isoDate,
     state: s,
+    timeline: tl,
+    timelineTicks: ticks(tl, 4),
+    timelineNow: isoDate === todayIso() ? nowOffset(tl) : null,
+    readinessTrend: readinessTrend(isoDate),
     ui: s.ui,
     shiftKeyFor,
     shiftDayFor,
