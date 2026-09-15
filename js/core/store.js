@@ -27,7 +27,6 @@ export function defaultState() {
       sessionMinutes: 90,
       gymTravelMinutes: 20,   // einfache Fahrt, zählt bei Krafteinheiten doppelt
       easyPace: 6.4, // min/km, nur für die km-Schätzung
-      trainingMax: { squat: null, bench: null, trapbar: null },
       theme: 'dark',
     },
     checkins: [],        // [{ date, recovery, hrv, rhr, sleepHours, sleepPerformance, strain, soreness, mood }]
@@ -61,7 +60,7 @@ function migrate(saved) {
     ...saved,
     profile: { ...base.profile, ...saved.profile },
     shift: { ...base.shift, ...saved.shift, overrides: { ...base.shift.overrides, ...(saved.shift || {}).overrides } },
-    settings: { ...base.settings, ...saved.settings, trainingMax: { ...base.settings.trainingMax, ...(saved.settings || {}).trainingMax } },
+    settings: { ...base.settings, ...saved.settings },
     ui: { ...base.ui, ...saved.ui },
   };
   if (!Array.isArray(merged.tasks) || !merged.tasks.length) merged.tasks = defaultHabits();

@@ -338,17 +338,6 @@ export function settingsSheet(ctx) {
         ${numField('weightKg', 'Körpergewicht (kg)', 'Grundlage für das Proteinziel in den Gewohnheiten.', ctx.state.profile.weightKg, 'min="35" max="200" step="0.5"')}
       </div>
 
-      <div class="card stack">
-        <div class="section-label">Trainingsmaxima</div>
-        <p class="field__hint">Rund 90 % deines Einer-Maximums. Ohne Angabe plant die App über die
-        Anstrengung (RPE) statt über Kilogramm – das funktioniert, ist aber ungenauer. Wenn du die
-        Werte irgendwann kennst, trag sie hier nach.</p>
-        ${numField('tm_squat', 'Kniebeuge (kg)', null, tm.squat, 'min="20" max="400" step="2.5"')}
-        ${numField('tm_bench', 'Bankdrücken (kg)', null, tm.bench, 'min="20" max="300" step="2.5"')}
-        ${numField('tm_trapbar', 'Trap-Bar Kreuzheben (kg)', null, tm.trapbar, 'min="20" max="400" step="2.5"')}
-        <div class="field__hint">Nach jedem Vierwochenblock erhöht die App die Maxima automatisch – Beine 5 kg, Oberkörper 2,5 kg.</div>
-      </div>
-
       <button class="btn btn--primary btn--block" type="submit" data-action="save-settings">Speichern</button>
     </form>
 

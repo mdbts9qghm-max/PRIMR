@@ -73,7 +73,7 @@ export function sessionCard(session, opts = {}) {
         </div>
         ${session.durationMin ? `<div style="text-align:right;flex:none">
           <div class="num" style="font-size:20px;font-weight:600">${session.durationMin}</div>
-          <div class="tiny muted">Minuten</div>
+          <div class="tiny muted">${esc(session.durationCaption || 'Minuten')}</div>
         </div>` : ''}
       </div>
 

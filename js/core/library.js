@@ -2,7 +2,7 @@
 // ihre Belastungspunkte. Der Umfang kommt von außen (Progressionsmodell),
 // die Struktur steht hier.
 
-import { zoneLabel, zoneRange } from './zones.js';
+import { zone, zoneLabel, zoneRange } from './zones.js';
 import { round } from './util.js';
 
 export const LOAD_FACTOR = {
@@ -166,7 +166,7 @@ export function easyRun(w, targetMin, paceMinPerKm) {
     kind: 'run',
     hard: false,
     title: 'Easy Run',
-    subtitle: `${targetMin} min${km ? ` · ca. ${km} km` : ''} · ${zoneLabel(1)}–${zoneLabel(2)}`,
+    subtitle: `${targetMin} min${km ? ` · ca. ${km} km` : ''} · Z1–Z2 · ${zone(1).from}–${zone(2).to}`,
     focus: 'Regeneration bei gleichzeitigem aerobem Reiz',
     durationMin: targetMin,
     primaryZone: 2,
@@ -179,103 +179,60 @@ export function easyRun(w, targetMin, paceMinPerKm) {
   };
 }
 
-/** Prozent vom Trainingsmaximum je Woche im Vierwochenblock. */
-export const STRENGTH_WAVE = [
-  { sets: 4, reps: 5, pct: 0.78, label: 'Aufbau' },
-  { sets: 5, reps: 5, pct: 0.8, label: 'Volumen' },
-  { sets: 5, reps: 3, pct: 0.87, label: 'Intensität' },
-  { sets: 3, reps: 5, pct: 0.62, label: 'Deload' },
-];
-
+/**
+ * Krafteinheiten. Die App plant nur, WANN Kraft ansteht und mit welchem
+ * Schwerpunkt – Sätze, Wiederholungen und Gewichte steuerst du selbst.
+ *
+ * Der Schwerpunkt bleibt trotzdem im Modell, weil er fürs Planen zählt:
+ * schwere Beinarbeit verträgt sich nicht mit einem harten Lauf am Folgetag,
+ * Oberkörper dagegen schon.
+ */
 const STRENGTH_TEMPLATES = {
   kraft_a: {
-    title: 'Kraft A · Unterkörper schwer',
-    focus: 'Maximalkraft Beine – die Basis für Laufökonomie',
+    title: 'Kraft A · Unterkörper',
+    focus: 'Schwerer Beintag',
     hard: true,
-    mainLift: 'squat',
-    mainName: 'Kniebeuge',
-    accessories: [
-      { name: 'Rumänisches Kreuzheben', scheme: '3 × 8', note: 'Hamstrings – dein bester Schutz gegen Laufverletzungen' },
-      { name: 'Bulgarian Split Squat', scheme: '3 × 8 je Bein', note: 'Einbeinige Stabilität, direkt laufübertragbar' },
-      { name: 'Wadenheben stehend', scheme: '3 × 12', note: 'Achillessehne auf Umfang vorbereiten' },
-      { name: 'Pallof Press', scheme: '3 × 10 je Seite', note: 'Rumpf gegen Rotation – hält die Hüfte beim Laufen ruhig' },
-    ],
-    note: 'Schwere Beinarbeit nie direkt vor dem Longrun. Der Plan hält deshalb mindestens einen Tag Abstand.',
+    note: 'Schwere Beinarbeit hält der Plan mindestens einen Tag von harten Läufen fern. Was du machst und mit welchem Gewicht, entscheidest du.',
   },
   kraft_b: {
     title: 'Kraft B · Oberkörper',
-    focus: 'Druck- und Zugkraft, Schulterstabilität',
+    focus: 'Druck und Zug',
     hard: false,
-    mainLift: 'bench',
-    mainName: 'Bankdrücken',
-    accessories: [
-      { name: 'Klimmzüge', scheme: '4 × max-2', note: 'Bei mehr als 12 Wiederholungen Zusatzgewicht' },
-      { name: 'Schulterdrücken stehend', scheme: '3 × 8', note: 'Stabiler Rumpf, keine Ausweichbewegung ins Hohlkreuz' },
-      { name: 'Langhantelrudern', scheme: '4 × 8', note: 'Gegengewicht zur Druckarbeit, hält die Schulter gesund' },
-      { name: 'Face Pulls', scheme: '3 × 15', note: 'Hintere Schulter – zwei Minuten, die viel Ärger sparen' },
-    ],
-    note: 'Die verträglichste Einheit im Plan. Sie kann auch nach einem harten Lauftag stehen.',
+    note: 'Die verträglichste Einheit der Woche – sie belastet die Beine nicht und darf deshalb auch neben einem Lauftag stehen.',
   },
   kraft_c: {
-    title: 'Kraft C · Athletik & Power',
-    focus: 'Explosivkraft, Hüftstreckung, Rumpf',
+    title: 'Kraft C · Athletik',
+    focus: 'Explosivkraft, Rumpf, Einbeiniges',
     hard: false,
-    mainLift: 'trapbar',
-    mainName: 'Trap-Bar Kreuzheben',
-    accessories: [
-      { name: 'Box Jumps', scheme: '5 × 3', note: 'Volle Pause, Qualität vor Menge. Kein Ausdauerreiz.' },
-      { name: 'Hip Thrust', scheme: '3 × 10', note: 'Gesäß als Motor der Hüftstreckung' },
-      { name: 'Farmer’s Walk', scheme: '4 × 40 m', note: 'Griffkraft und Rumpf unter Last' },
-      { name: 'Side Plank mit Beinheben', scheme: '3 × 30 s je Seite', note: 'Hüftstabilität gegen das Absacken im Laufschritt' },
-    ],
-    note: 'Sprünge stehen ganz vorne, wenn das Nervensystem frisch ist – nie am Ende der Einheit.',
+    note: 'Athletik und Sprünge liegen an einem Tag mit frischem Nervensystem, nicht im Anschluss an einen harten Reiz.',
   },
 };
 
 /**
- * Krafteinheit. trainingMax: { squat, bench, trapbar, ... } in kg (optional).
+ * minutesAvailable ist hier keine Vorgabe, sondern die Zeit, die das
+ * Zeitfenster des Tages nach Abzug der Anfahrt wirklich hergibt.
  */
-export function strengthSession(slot, w, trainingMax, minutesAvailable) {
+// Für die Belastungspunkte wird eine normale Einheit angesetzt, nicht das
+// ganze Zeitfenster – sonst zählte ein freier Nachmittag als härteres Training
+// als der Longrun. Was es wirklich war, korrigiert deine Angabe beim Abhaken.
+const STRENGTH_NOMINAL_MIN = 60;
+
+export function strengthSession(slot, w, minutesAvailable) {
   const tpl = STRENGTH_TEMPLATES[slot];
-  const wave = STRENGTH_WAVE[w % 4];
-  const tm = trainingMax && trainingMax[tpl.mainLift];
-  const weight = tm ? Math.round((tm * wave.pct) / 2.5) * 2.5 : null;
-
-  const blocks = [
-    { label: 'Aufwärmen', detail: '8 min Rudergerät oder Seilspringen, dann 2 Aufwärmsätze der Hauptübung', minutes: 12 },
-    {
-      label: `${tpl.mainName} (Hauptübung)`,
-      detail: weight
-        ? `${wave.sets} × ${wave.reps} @ ${weight} kg (${Math.round(wave.pct * 100)} % vom Trainingsmax)`
-        : `${wave.sets} × ${wave.reps} @ RPE ${wave.pct >= 0.85 ? '8–9' : wave.pct >= 0.78 ? '7–8' : '6'}`,
-      minutes: wave.sets * 3,
-      strong: true,
-    },
-    ...tpl.accessories.map((a) => ({
-      label: a.name,
-      detail: `${a.scheme} — ${a.note}`,
-      minutes: 7,
-    })),
-  ];
-
-  let total = blocks.reduce((a, b) => a + (b.minutes || 0), 0);
-  // Bei knappem Zeitfenster fallen die hinteren Zusatzübungen weg.
-  while (minutesAvailable && total > minutesAvailable && blocks.length > 3) {
-    total -= blocks.pop().minutes || 0;
-  }
+  const minutes = Math.max(30, Math.round(Math.min(minutesAvailable, 90) / 5) * 5);
 
   return {
     slot,
     kind: 'strength',
-    hard: tpl.hard && wave.pct >= 0.75,
+    hard: tpl.hard,
     title: tpl.title,
-    subtitle: `${wave.label} · ${wave.sets} × ${wave.reps}${weight ? ` @ ${weight} kg` : ''}`,
+    subtitle: tpl.focus,
     focus: tpl.focus,
-    durationMin: total,
-    blocks,
+    durationMin: minutes,
+    durationCaption: 'Minuten Zeit',
+    blocks: [],
     coachNote: tpl.note,
-    wave,
-    load: Math.round(total * LOAD_FACTOR[slot]),
+    load: Math.round(STRENGTH_NOMINAL_MIN * LOAD_FACTOR[slot]),
   };
 }
 

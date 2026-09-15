@@ -143,8 +143,8 @@ export function render(ctx) {
       </div>
       <div class="note" style="margin-top:12px">
         ${prog.deload
-          ? 'Entlastungswoche: Der Umfang fällt auf rund 72 %. Genau hier kommt die Anpassung der drei Wochen davor an – nicht im Training selbst.'
-          : 'Aufbauwoche: Der Umfang steigt kontrolliert. Krafttraining folgt derselben Welle über das Trainingsmaximum.'}
+          ? 'Entlastungswoche: Der Laufumfang fällt auf rund 72 %. Genau hier kommt die Anpassung der drei Wochen davor an – nicht im Training selbst. Im Kraftraum wäre jetzt ein guter Zeitpunkt, es ebenfalls ruhiger angehen zu lassen.'
+          : 'Aufbauwoche: Der Laufumfang steigt kontrolliert.'}
       </div>
       <div class="disclose" data-disclose="prog-detail">
         <button class="disclose__toggle" data-action="toggle-disclose">
@@ -156,12 +156,16 @@ export function render(ctx) {
             <p><strong>Laufen:</strong> Vier-Wochen-Blöcke mit 100 %, 110 %, 120 % und 72 % des Blockumfangs.
             Jeder neue Block startet 5 % über dem letzten. Gedeckelt beim 2,6-fachen deines Startumfangs,
             damit der Plan nicht ins Unendliche wächst.</p>
-            <p><strong>Kraft:</strong> Dieselbe Welle über dem Trainingsmaximum – 78 %, 80 %, 87 %, 62 %.
-            Nach jedem Block steigt das Trainingsmaximum: 5 kg bei Beinübungen, 2,5 kg beim Oberkörper.</p>
+            <p><strong>Kraft:</strong> Die App legt nur fest, wann welche Einheit ansteht und wie viel
+            Zeit dafür da ist. Übungen, Sätze und Gewichte steuerst du selbst – die Progression im
+            Kraftraum liegt bei dir. Der Schwerpunkt (Beine, Oberkörper, Athletik) bleibt trotzdem im
+            Modell, weil davon abhängt, was am Folgetag noch sinnvoll ist.</p>
             <p><strong>Intensive Läufe</strong> rotieren durch sechs Formen, damit Schwelle und VO2max
             abwechselnd gereizt werden. Die Wiederholungszahl wächst mit dem Wochenindex.</p>
             <p>Der Plan hat kein Ziel und kein Ende – er läuft in Blöcken weiter und passt sich über
             deine Marker an, nicht über einen Wettkampftermin.</p>
+            <p>Was du in einer Krafteinheit gemacht hast, kannst du beim Abhaken notieren. Daraus wird
+            dein eigener Verlauf, ohne dass die App dir Gewichte vorschreibt.</p>
           </div>
         </div>
       </div>

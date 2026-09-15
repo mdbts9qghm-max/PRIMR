@@ -75,7 +75,14 @@ geänderten Tag.
 ## Wie der Trainingsplan entsteht
 
 Ziel sind drei Läufe (einmal intensiv, einmal Longrun, einmal locker) und drei
-Kraft-/Athletikeinheiten pro Woche.
+Krafteinheiten pro Woche.
+
+Beim Laufen gibt die App die Einheit vor – Struktur, Dauer und Zielzone. **Beim
+Krafttraining plant sie nur den Termin**: welcher Tag, welcher Schwerpunkt
+(Unterkörper, Oberkörper, Athletik) und wie viel Zeit das Fenster hergibt.
+Übungen, Sätze und Gewichte bleiben deine Sache. Der Schwerpunkt steckt trotzdem
+im Modell, weil davon abhängt, was am Folgetag noch sinnvoll ist: ein schwerer
+Beintag blockiert den harten Lauf danach, Oberkörper nicht.
 
 Der Planer durchsucht alle möglichen Verteilungen der sechs Einheiten auf die
 sieben Tage vollständig und bewertet jede:
@@ -95,12 +102,16 @@ und nicht das Ergebnis einer Faustregel.
 
 ### Progression
 
-Vierwochenblöcke mit 100 %, 110 %, 120 % und 72 % des Blockumfangs. Jeder neue
-Block startet 5 % über dem letzten, gedeckelt beim 2,6-fachen des Startumfangs.
-Im Kraftraum läuft dieselbe Welle über dem Trainingsmaximum (78 %, 80 %, 87 %,
-62 %); nach jedem Block steigt das Maximum um 5 kg bei Bein- und 2,5 kg bei
-Oberkörperübungen. Der Plan hat kein Ende und kein Wettkampfziel – gemessen wird
-an physiologischen Markern.
+Der Laufumfang läuft in Vierwochenblöcken mit 100 %, 110 %, 120 % und 72 % des
+Blockumfangs. Jeder neue Block startet 5 % über dem letzten, gedeckelt beim
+2,6-fachen des Startumfangs. Der Plan hat kein Ende und kein Wettkampfziel –
+gemessen wird an physiologischen Markern.
+
+Die Kraftprogression steuerst du selbst. Beim Abhaken einer Krafteinheit fragt
+die App, was du gemacht hast; daraus entsteht dein eigener Verlauf, ohne dass
+sie dir Gewichte vorschreibt. Für die Belastungsrechnung setzt sie eine normale
+Einheit an, nicht das ganze verfügbare Zeitfenster – deine Angabe zur
+Anstrengung korrigiert das nach oben oder unten.
 
 ### Herzfrequenzzonen
 

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { shiftDay, DEFAULT_CYCLE, trainingWindow, typeFor } from '../js/core/shift.js';
 import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff } from '../js/core/sleep.js';
-import { planWeek, progression, weekIndex, effectiveTrainingMax, loadBalance } from '../js/core/plan.js';
+import { planWeek, progression, weekIndex, loadBalance } from '../js/core/plan.js';
 import { HARD_SLOTS } from '../js/core/library.js';
 import { readiness, baselines, trainingDirective, BANDS } from '../js/core/readiness.js';
 import { defaultHabits, dueOn, createTask } from '../js/core/tasks.js';
@@ -154,7 +154,6 @@ const SETTINGS = {
   sessionMinutes: 90,
   gymTravelMinutes: 20,
   easyPace: 6.4,
-  trainingMax: { squat: 120, bench: 90, trapbar: 150 },
 };
 
 function weeksOf(n) {
@@ -261,11 +260,54 @@ test('Umfang ist nach oben gedeckelt', () => {
   assert.ok(progression(400, SETTINGS).weeklyRunMinutes <= SETTINGS.startRunMinutes * 2.6 * 1.2 + 1);
 });
 
-test('Trainingsmaximum wächst je Block', () => {
-  const tm = effectiveTrainingMax({ squat: 120, bench: 90, trapbar: 150 }, 3);
-  assert.equal(tm.squat, 135);
-  assert.equal(tm.bench, 97.5);
-  assert.equal(tm.trapbar, 165);
+test('Zonenangaben in den Untertiteln bleiben lesbar', () => {
+  weeksOf(6).forEach((w) => w.days.forEach((d) => {
+    [d.session, d.extra].filter(Boolean).forEach((session) => {
+      if (session.kind !== 'run') return;
+      // Kein doppelter Zonenblock der Form "Z1 · 114–138–Z2 · 139–160":
+      // eine Pulszahl darf nie direkt an eine Zonenbezeichnung stoßen.
+      assert.ok(!/\d{3}–Z\d/.test(session.subtitle), `${d.date}: ${session.subtitle}`);
+    });
+  }));
+});
+
+test('Krafteinheiten schreiben nichts vor', () => {
+  const forbidden = /\d\s*[×x]\s*\d|kg|RPE|%/;
+  weeksOf(12).forEach((w) => w.days.forEach((d) => {
+    [d.session, d.extra].filter(Boolean).forEach((session) => {
+      if (session.kind !== 'strength') return;
+      assert.equal(session.blocks.length, 0, `${d.date}: ${session.title} hat einen Ablauf`);
+      const text = `${session.title} ${session.subtitle} ${session.focus}`;
+      assert.ok(!forbidden.test(text), `${d.date}: "${text}" enthält eine Vorgabe`);
+    });
+  }));
+});
+
+test('Krafteinheiten nennen die verfügbare Zeit, keine Dauer-Vorgabe', () => {
+  const w = planWeek('2026-01-05', CONFIG, SETTINGS);
+  const strength = w.days.map((d) => d.session).filter((s) => s.kind === 'strength');
+  assert.ok(strength.length > 0);
+  strength.forEach((s) => {
+    assert.equal(s.durationCaption, 'Minuten Zeit');
+    assert.ok(s.durationMin >= 30);
+  });
+});
+
+test('Belastungspunkte einer Krafteinheit hängen nicht am Zeitfenster', () => {
+  const short = planWeek('2026-01-05', CONFIG, { ...SETTINGS, sessionMinutes: 45 });
+  const long = planWeek('2026-01-05', CONFIG, { ...SETTINGS, sessionMinutes: 120 });
+  const loadOf = (plan, slot) => {
+    const d = plan.days.find((x) => x.slot === slot);
+    return d ? d.session.load : null;
+  };
+  assert.equal(loadOf(short, 'kraft_b'), loadOf(long, 'kraft_b'));
+});
+
+test('Der Beintag bleibt fürs Planen die harte Einheit', () => {
+  weeksOf(12).forEach((w) => w.days.forEach((d) => {
+    if (d.slot === 'kraft_a' && d.session.kind === 'strength') assert.equal(d.session.hard, true);
+    if (d.slot === 'kraft_b' && d.session.kind === 'strength') assert.equal(d.session.hard, false);
+  }));
 });
 
 test('Wochenindex zählt ab Planstart', () => {

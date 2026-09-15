@@ -70,20 +70,6 @@ export function progression(w, settings) {
   };
 }
 
-/**
- * Progressive Overload im Kraftraum: Nach jedem abgeschlossenen Vierwochenblock
- * steigt das Trainingsmaximum – Beinübungen 5 kg, Oberkörper 2,5 kg.
- */
-export function effectiveTrainingMax(base, block) {
-  if (!base) return base;
-  const step = { squat: 5, trapbar: 5, bench: 2.5 };
-  const out = {};
-  Object.keys(step).forEach((k) => {
-    out[k] = base[k] == null ? null : base[k] + step[k] * block;
-  });
-  return out;
-}
-
 function buildSession(slot, w, prog, settings, minutesFree) {
   switch (slot) {
     case 'long':
@@ -93,7 +79,7 @@ function buildSession(slot, w, prog, settings, minutesFree) {
     case 'easy':
       return easyRun(w, clamp(prog.easyMinutes, 20, minutesFree), settings.easyPace);
     default:
-      return strengthSession(slot, w, effectiveTrainingMax(settings.trainingMax, prog.block), minutesFree);
+      return strengthSession(slot, w, minutesFree);
   }
 }
 
@@ -218,7 +204,7 @@ export function planWeek(isoDate, shiftConfig, settings) {
     SLOTS.forEach((slot) => {
       if (FIT[slot][d.key] < 0) return;
       const room = Math.min(d.window.minutesFree - (slot.startsWith('kraft') ? travel : 0), cap);
-      if (room < 20) return;
+      if (room < 30) return;
       const session = buildSession(slot, w, prog, settings, room);
       if (session.durationMin <= room + 10) out[slot] = session;
     });
@@ -280,7 +266,7 @@ function explain(slot, day, days, byDay) {
 
   if (slot === 'long') parts.push('Der Longrun braucht Zeit und Ruhe danach, deshalb liegt er hier.');
   if (slot === 'intensiv') parts.push('Intensive Reize liegen mit größtmöglichem Abstand zum Longrun.');
-  if (slot === 'kraft_a') parts.push('Schwere Beinarbeit mit mindestens einem Tag Abstand zum nächsten harten Lauf.');
+  if (slot === 'kraft_a') parts.push('Der Beintag liegt mit mindestens einem Tag Abstand zum nächsten harten Lauf.');
   if (slot === 'kraft_b') parts.push('Oberkörper belastet die Beine nicht – darf auch nach einem Lauftag stehen.');
   if (slot === 'kraft_c') parts.push('Athletik und Sprünge stehen an einem Tag mit frischem Nervensystem.');
   if (slot === 'easy') parts.push('Lockerer Lauf als Brücke zwischen zwei Reizen.');

@@ -89,8 +89,9 @@ function completeSheet(c, payload) {
           <div class="field__hint">Deine Einschätzung skaliert die Belastungspunkte – geplant sind ${session.load}.</div>
         </div>
         <div class="field">
-          <label class="field__label" for="f-snote">Notiz</label>
-          <input id="f-snote" name="note" type="text" placeholder="optional">
+          <label class="field__label" for="f-snote">${session.kind === 'strength' ? 'Was hast du gemacht?' : 'Notiz'}</label>
+          <input id="f-snote" name="note" type="text"
+                 placeholder="${session.kind === 'strength' ? 'Übungen und Gewichte – für deinen eigenen Verlauf' : 'optional'}">
         </div>
       </div>
       <button class="btn btn--primary btn--block" type="submit" data-action="save-complete"
@@ -219,11 +220,6 @@ function saveSettings(form) {
     if (travel != null) s.settings.gymTravelMinutes = travel;
     const weight = num(form, 'weightKg');
     if (weight != null) s.profile.weightKg = weight;
-    s.settings.trainingMax = {
-      squat: num(form, 'tm_squat'),
-      bench: num(form, 'tm_bench'),
-      trapbar: num(form, 'tm_trapbar'),
-    };
   });
   ctxBuilder.invalidate();
   app.sheet = null;
