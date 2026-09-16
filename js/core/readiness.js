@@ -165,6 +165,15 @@ export function readiness(checkin, base, dayKey, load, sleepTarget) {
  * Gibt Faktoren zurück, die der Trainingsplaner direkt anwendet.
  */
 export function trainingDirective(score, dayKey) {
+  if (dayKey === 'krank') {
+    return {
+      key: 'krank',
+      volume: 0,
+      allowHard: false,
+      hrCap: 120,
+      text: 'Krank gemeldet – heute wird nicht trainiert. Was du jetzt an Erholung sparst, zahlst du später doppelt. Der Plan läuft weiter, sobald du wieder gesund bist, und steigt danach bewusst langsam an.',
+    };
+  }
   if (score == null) {
     return { key: 'unbekannt', volume: 1, allowHard: true, hrCap: null, text: 'Ohne Check-in plant die App nach Schichtlage – trag die Werte nach, dann wird es präzise.' };
   }
@@ -243,6 +252,12 @@ export function dayAdvice(result, checkin, dayKey, base, hasHardSession, sleepTa
     tips.push({
       label: 'Nachtschicht',
       text: 'Letztes Koffein spätestens um 00:00, sonst frisst es den Morgenschlaf. Auf dem Heimweg Sonnenbrille – Morgenlicht schaltet dich sonst wach.',
+    });
+  }
+  if (dayKey === 'krank') {
+    tips.unshift({
+      label: 'Wann wieder einsteigen',
+      text: 'Erst wenn du 24 Stunden beschwerdefrei und fieberfrei bist. Danach beginnt die App von sich aus mit lockeren Einheiten – ein Tag vorsichtiger Wiedereinstieg je Krankheitstag, mindestens zwei.',
     });
   }
   if (dayKey === 'tag') {

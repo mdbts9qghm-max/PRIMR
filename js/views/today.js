@@ -99,7 +99,9 @@ export function render(ctx) {
       <div style="margin-top:14px">
         ${blockPosition(ctx.day, BLOCK_POSITIONS)}
         <div class="row row--between" style="margin-top:6px">
-          <span class="tiny muted">Block ${Math.floor(ctx.day.index / BLOCK_POSITIONS.length) + 1} von ${Math.round(ctx.state.shift.cycle.length / BLOCK_POSITIONS.length)}</span>
+          <span class="tiny muted">${ctx.day.absence
+            ? `Regeldienst wäre ${esc(BLOCK_POSITIONS[ctx.day.index % BLOCK_POSITIONS.length].code)}`
+            : `Block ${Math.floor(ctx.day.index / BLOCK_POSITIONS.length) + 1} von ${Math.round(ctx.state.shift.cycle.length / BLOCK_POSITIONS.length)}`}</span>
           <span class="tiny muted">Zyklustag ${ctx.day.index + 1} von ${ctx.state.shift.cycle.length}</span>
         </div>
       </div>
@@ -160,6 +162,23 @@ export function render(ctx) {
         <button class="btn btn--ghost btn--block btn--sm" data-action="open-checkin">Werte korrigieren</button>
       </div>` : ''}
     </div>
+
+    ${ctx.ramp ? `<div class="card">
+      <div class="section-label">Wiedereinstieg</div>
+      <div class="row row--between" style="margin-top:10px;align-items:flex-end">
+        <div class="grow">
+          <div style="font-size:17px;font-weight:600">Tag ${ctx.ramp.dayIndex} von ${ctx.ramp.rampDays}</div>
+          <div class="tiny muted" style="margin-top:3px">nach ${ctx.ramp.illnessDays} Krankheitstag${ctx.ramp.illnessDays === 1 ? '' : 'en'}</div>
+        </div>
+        <div class="num tone-warn" style="font-size:20px;font-weight:600">${Math.round(ctx.ramp.factor * 100)} %</div>
+      </div>
+      <div style="margin-top:10px">${meter(ctx.ramp.dayIndex, ctx.ramp.rampDays, 'var(--warn)')}</div>
+      <div class="note note--warn" style="margin-top:12px">
+        Keine harten Reize, Umfang auf ${Math.round(ctx.ramp.factor * 100)} %. Ab
+        ${ctx.ramp.remaining === 1 ? 'morgen' : `in ${ctx.ramp.remaining} Tagen`} plant die App wieder normal.
+        Wenn Ruhepuls oder HRV noch abweichen, trag lieber einen Tag mehr Krankheit ein als einen zu wenig.
+      </div>
+    </div>` : ''}
 
     ${sessionCard(ctx.session, {
       window: ctx.window,

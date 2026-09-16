@@ -260,6 +260,31 @@ export function mobilitySession(dayKey) {
   };
 }
 
+/**
+ * Krank. Kein Training, sondern das, was tatsächlich hilft – und die eine
+ * Regel, an der sich entscheidet, ob daraus drei Tage oder drei Wochen werden.
+ */
+export function sickDay() {
+  return {
+    slot: 'krank',
+    kind: 'sick',
+    hard: false,
+    title: 'Auskurieren',
+    subtitle: 'Kein Training – heute arbeitet der Körper woanders',
+    focus: 'Genesung',
+    durationMin: 0,
+    blocks: [
+      { label: 'Schlaf', detail: 'Ohne Wecker, dazu ein Mittagsschlaf. Die wirksamste Maßnahme beim Infekt, mit Abstand.' },
+      { label: 'Trinken', detail: 'Mindestens 3 l, bei Fieber 0,5 l mehr je Grad über 37 °C.' },
+      { label: 'Essen', detail: 'Protein nicht streichen. Der Körper baut im Infekt Muskulatur ab, nicht auf.' },
+      { label: 'Bewegung', detail: 'Höchstens ein ruhiger Spaziergang an der frischen Luft. Kein Puls über Zone 1.' },
+      { label: 'Messen', detail: 'Ruhepuls und Temperatur notieren. Der Verlauf zeigt dir, wann du wieder einsteigen kannst.' },
+    ],
+    coachNote: 'Die Faustregel: Beschwerden oberhalb des Halses (Schnupfen, Halskratzen) erlauben lockere Bewegung. Fieber, Gliederschmerzen, Husten aus der Brust oder ein Ruhepuls deutlich über deinem Schnitt bedeuten Pause – Training mit einem Infekt im Körper ist der kürzeste Weg zu einer Herzmuskelentzündung.',
+    load: 0,
+  };
+}
+
 export function restDay(reason) {
   return {
     slot: 'rest',

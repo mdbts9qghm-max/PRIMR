@@ -46,6 +46,13 @@ export const DAY_SLEEP = {
     bed: '23:30',
     naps: [],
   },
+  // Krank: kein Wecker, früher ins Bett, Mittagsschlaf erwünscht. Schlaf ist
+  // beim Infekt die wirksamste Maßnahme, die es gibt.
+  krank: {
+    wake: '08:00',
+    bed: '22:00',
+    naps: [{ label: 'Mittagsschlaf', from: '13:00', to: '14:30' }],
+  },
 };
 
 function bedOffsetDays(dayKey) {
@@ -104,14 +111,14 @@ export function sleepPlan(dayKey, prevKey = null, nextKey = null) {
 function fallbackPrev(dayKey) {
   return {
     tag: 'frei_vor_tag', nacht: 'tag', nacht_folge: 'nacht',
-    schlaftag: 'nacht', frei: 'schlaftag', frei_vor_tag: 'frei',
+    schlaftag: 'nacht', frei: 'schlaftag', frei_vor_tag: 'frei', krank: 'krank',
   }[dayKey];
 }
 
 function fallbackNext(dayKey) {
   return {
     tag: 'nacht', nacht: 'schlaftag', nacht_folge: 'schlaftag',
-    schlaftag: 'frei', frei: 'frei_vor_tag', frei_vor_tag: 'tag',
+    schlaftag: 'frei', frei: 'frei_vor_tag', frei_vor_tag: 'tag', krank: 'krank',
   }[dayKey];
 }
 
@@ -128,6 +135,8 @@ function summaryFor(dayKey, before, after) {
       return `Schlaf ${before.from}–${before.to} (${h(before)}), abends um ${after.from} wieder ins Bett (${h(after)}).`;
     case 'frei_vor_tag':
       return `Aufstehen 08:00, wegen der kommenden Tagschicht schon um ${after.from} ins Bett (${h(after)}).`;
+    case 'krank':
+      return `Ohne Wecker aufstehen, Mittagsschlaf 13:00–14:30, abends um ${after.from} ins Bett (${h(after)}).`;
     default:
       return `Aufstehen 08:00 nach ${h(before)}, Licht aus um ${after.from}.`;
   }
@@ -192,6 +201,13 @@ export function morningRoutine(dayKey) {
         ...base,
         { time: at(30), text: '20–30 min zügig draußen gehen. Der stärkste Reset nach einer durchwachten Nacht.' },
         { time: caffeineCutoff('schlaftag'), text: 'Ab hier kein Koffein mehr – du gehst heute um 00:00 ins Bett.' },
+      ];
+    case 'krank':
+      return [
+        { time: wake, text: 'Kein Wecker. Wach werden, wenn der Körper so weit ist – heute gibt es nichts zu verpassen.' },
+        { time: at(5), text: 'Trinken, bevor du irgendetwas anderes tust. Bei Fieber 0,5 l mehr je Grad.' },
+        { time: at(20), text: 'Kurz ans offene Fenster oder vor die Tür. Licht hilft dem Rhythmus, auch wenn der Rest liegen bleibt.' },
+        { time: at(60), text: 'Ruhepuls und Temperatur notieren – morgen willst du wissen, ob es besser wird.' },
       ];
     default:
       return [

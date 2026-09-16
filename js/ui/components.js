@@ -5,6 +5,15 @@ import { ZONE_COLORS } from './charts.js';
 import { zone, zoneRange } from '../core/zones.js';
 import { durationLabel, weekdayShort, shortDate, round } from '../core/util.js';
 
+/** Eine Quelle für die Farbe eines Tages – Streifen, Raster und Editor
+ *  sollen nicht auseinanderlaufen. */
+export function shiftColor(raw) {
+  if (raw === 'T') return 'var(--shift-t)';
+  if (raw === 'N') return 'var(--shift-n)';
+  if (raw === 'K') return 'var(--critical)';
+  return 'var(--shift-f)'; // F und U – Urlaub ist ein freier Tag
+}
+
 const BADGE_CLASS = {
   tag: 'badge--tag',
   nacht: 'badge--nacht',
@@ -12,6 +21,7 @@ const BADGE_CLASS = {
   schlaftag: 'badge--schlaf',
   frei: 'badge--frei',
   frei_vor_tag: 'badge--frei',
+  krank: 'badge--krank',
 };
 
 export function shiftBadge(day) {
@@ -100,7 +110,7 @@ export function sessionCard(session, opts = {}) {
           </div>
         </div>` : ''}
 
-      ${session.kind !== 'rest' && date ? `
+      ${session.kind !== 'rest' && session.kind !== 'sick' && date ? `
         <div class="btn-group" style="margin-top:14px">
           ${entry
             ? `<button class="btn btn--ghost" data-action="undo-session" data-date="${esc(date)}" data-slot="${esc(slot)}">Eintrag zurücknehmen</button>`
@@ -138,8 +148,8 @@ export function dayRow(entry, todayIso, logged) {
     </button>`;
 }
 
-const KIND_LABEL = {
-  run: 'Lauf', strength: 'Kraft', mobility: 'Mob.', rest: 'frei',
+export const KIND_LABEL = {
+  run: 'Lauf', strength: 'Kraft', mobility: 'Mob.', rest: 'frei', sick: 'krank',
 };
 
 /**
@@ -158,9 +168,8 @@ export function weekStrip(plan, todayIso) {
   return `<div class="weekstrip">${plan.days.map((d) => {
     const total = loadOf(d);
     const hard = [d.session, d.extra].filter(Boolean).some((s) => s.hard);
-    const color = d.shift.raw === 'T' ? 'var(--shift-t)'
-      : d.shift.raw === 'N' ? 'var(--shift-n)' : 'var(--shift-f)';
-    const label = KIND_LABEL[d.session.kind] + (d.extra ? '+' : '');
+    const color = shiftColor(d.shift.raw);
+    const label = (KIND_LABEL[d.session.kind] || '–') + (d.extra ? '+' : '');
     const height = total ? Math.max(3, (total / max) * 34) : 2;
 
     return `<button class="weekstrip__col ${d.date === todayIso ? 'weekstrip__col--today' : ''}"
@@ -182,7 +191,8 @@ export function weekStripLegend() {
   return `<div class="legend">
     <span class="legend__item"><span class="legend__swatch" style="background:var(--shift-t)"></span>T · Tagschicht</span>
     <span class="legend__item"><span class="legend__swatch" style="background:var(--shift-n)"></span>N · Nachtschicht</span>
-    <span class="legend__item"><span class="legend__swatch" style="background:var(--shift-f)"></span>Ü und DF</span>
+    <span class="legend__item"><span class="legend__swatch" style="background:var(--shift-f)"></span>Ü, DF und Urlaub</span>
+    <span class="legend__item"><span class="legend__swatch" style="background:var(--critical)"></span>K · krank</span>
     <span class="legend__item"><span class="weekstrip__hard"></span>harte Einheit</span>
   </div>
   <div class="tiny muted" style="margin-top:6px">Balkenhöhe: geplante Belastungspunkte. Tippen öffnet den Tag.</div>`;
@@ -195,12 +205,19 @@ export function weekStripLegend() {
  */
 export function blockPosition(day, positions) {
   const here = day.index % positions.length;
+  // Bei Urlaub oder Krankheit zählt der Zyklus zwar weiter, aber der Tag ist
+  // nicht dieser Dienst. Dann wird nichts hervorgehoben, sondern nur gezeigt,
+  // wo im Block du stehen würdest.
+  const absent = Boolean(day.absence);
   return `<div class="blockpos" role="img"
-            aria-label="${esc(`Heute ist ${day.label}, Position ${here + 1} im Fünferblock`)}">
+            aria-label="${esc(absent
+              ? `Heute ist ${day.label}. Regeldienst wäre ${positions[here].label}.`
+              : `Heute ist ${day.label}, Position ${here + 1} im Fünferblock`)}">
     ${positions.map((p, i) => {
-      const color = p.code === 'T' ? 'var(--shift-t)' : p.code === 'N' ? 'var(--shift-n)' : 'var(--shift-f)';
-      const cls = i === here ? 'blockpos__cell--now' : i < here ? 'blockpos__cell--past' : '';
-      return `<span class="blockpos__cell ${cls}" ${i === here ? `style="background:${color}"` : ''}
+      const cls = i === here && !absent ? 'blockpos__cell--now' : i < here ? 'blockpos__cell--past' : '';
+      const ring = i === here && absent ? 'outline:1px dashed var(--text-muted);outline-offset:-1px;' : '';
+      return `<span class="blockpos__cell ${cls}"
+                style="${ring}${i === here && !absent ? `background:${shiftColor(p.code === 'T' ? 'T' : p.code === 'N' ? 'N' : 'F')}` : ''}"
                 title="${esc(p.label)}">${esc(p.code)}</span>`;
     }).join('')}
   </div>`;

@@ -9,9 +9,9 @@
 //   - Der Umfang steigt in Vierwochenblöcken und fällt in der vierten Woche ab.
 
 import { addDays, weekStart, daysBetween, clamp, round } from './util.js';
-import { shiftDay, trainingWindow, dutyMinutes } from './shift.js';
+import { shiftDay, trainingWindow, dutyMinutes, rawFor } from './shift.js';
 import {
-  intensivSession, longRun, easyRun, strengthSession, mobilitySession, restDay, HARD_SLOTS,
+  intensivSession, longRun, easyRun, strengthSession, mobilitySession, restDay, sickDay, HARD_SLOTS,
 } from './library.js';
 
 export const SLOTS = ['long', 'intensiv', 'kraft_a', 'easy', 'kraft_b', 'kraft_c'];
@@ -26,14 +26,50 @@ const SLOT_LABEL = {
 };
 
 // Wie gut passt eine Einheit zu einem Schichttag. -1 bedeutet unmöglich.
+// -1 bedeutet: an diesem Tag unmöglich. Krank steht überall auf -1.
 const FIT = {
-  long: { tag: -1, nacht: 7, nacht_folge: -1, schlaftag: 4, frei_vor_tag: 8, frei: 10 },
-  intensiv: { tag: -1, nacht: 8, nacht_folge: -1, schlaftag: 5, frei_vor_tag: 8, frei: 10 },
-  easy: { tag: -1, nacht: 7, nacht_folge: 5, schlaftag: 7, frei_vor_tag: 7, frei: 8 },
-  kraft_a: { tag: -1, nacht: 7, nacht_folge: -1, schlaftag: 5, frei_vor_tag: 8, frei: 10 },
-  kraft_b: { tag: -1, nacht: 7, nacht_folge: 4, schlaftag: 7, frei_vor_tag: 8, frei: 9 },
-  kraft_c: { tag: -1, nacht: 7, nacht_folge: 3, schlaftag: 6, frei_vor_tag: 8, frei: 9 },
+  long: { tag: -1, nacht: 7, nacht_folge: -1, schlaftag: 4, frei_vor_tag: 8, frei: 10, krank: -1 },
+  intensiv: { tag: -1, nacht: 8, nacht_folge: -1, schlaftag: 5, frei_vor_tag: 8, frei: 10, krank: -1 },
+  easy: { tag: -1, nacht: 7, nacht_folge: 5, schlaftag: 7, frei_vor_tag: 7, frei: 8, krank: -1 },
+  kraft_a: { tag: -1, nacht: 7, nacht_folge: -1, schlaftag: 5, frei_vor_tag: 8, frei: 10, krank: -1 },
+  kraft_b: { tag: -1, nacht: 7, nacht_folge: 4, schlaftag: 7, frei_vor_tag: 8, frei: 9, krank: -1 },
+  kraft_c: { tag: -1, nacht: 7, nacht_folge: 3, schlaftag: 6, frei_vor_tag: 8, frei: 9, krank: -1 },
 };
+
+export const MAX_RAMP_DAYS = 7;
+
+/**
+ * Wiedereinstieg nach einer Erkrankung.
+ *
+ * Nach einem Infekt sofort wieder hart zu trainieren ist der Fehler, der aus
+ * drei Krankheitstagen drei verlorene Wochen macht. Die App hält deshalb für
+ * jeden Krankheitstag einen Tag ohne harte Reize frei – mindestens zwei, höchstens
+ * sieben – und fährt den Umfang in dieser Zeit gestaffelt wieder hoch.
+ *
+ * Gibt null zurück, wenn der Tag nicht in einer solchen Phase liegt.
+ */
+export function illnessRamp(shiftConfig, isoDate) {
+  let lastSick = null;
+  for (let i = 1; i <= 28; i += 1) {
+    if (rawFor(shiftConfig, addDays(isoDate, -i)) === 'K') { lastSick = i; break; }
+  }
+  if (lastSick == null) return null;
+  if (rawFor(shiftConfig, isoDate) === 'K') return null; // heute noch krank
+
+  let length = 0;
+  while (length < 28 && rawFor(shiftConfig, addDays(isoDate, -(lastSick + length))) === 'K') length += 1;
+
+  const rampDays = clamp(length, 2, MAX_RAMP_DAYS);
+  if (lastSick > rampDays) return null;
+
+  return {
+    dayIndex: lastSick,            // 1 = erster Tag nach der Erkrankung
+    rampDays,
+    illnessDays: length,
+    remaining: rampDays - lastSick + 1,
+    factor: clamp(0.45 + 0.55 * (lastSick / rampDays), 0.45, 1),
+  };
+}
 
 const UNPLACED_PENALTY = { long: 150, intensiv: 140, easy: 90, kraft_a: 120, kraft_b: 85, kraft_c: 80 };
 
@@ -191,7 +227,7 @@ export function planWeek(isoDate, shiftConfig, settings) {
     const date = addDays(monday, i);
     const sd = shiftDay(shiftConfig, date);
     const win = trainingWindow(sd.key);
-    days.push({ date, key: sd.key, shift: sd, window: win });
+    days.push({ date, key: sd.key, shift: sd, window: win, ramp: illnessRamp(shiftConfig, date) });
   }
 
   // Vorab für jeden Tag prüfen, welche Einheit zeitlich überhaupt hineinpasst.
@@ -203,7 +239,11 @@ export function planWeek(isoDate, shiftConfig, settings) {
     const out = {};
     SLOTS.forEach((slot) => {
       if (FIT[slot][d.key] < 0) return;
-      const room = Math.min(d.window.minutesFree - (slot.startsWith('kraft') ? travel : 0), cap);
+      // Im Wiedereinstieg nach einer Erkrankung fallen harte Reize ganz weg
+      // und der Umfang wird gestaffelt zurückgenommen.
+      if (d.ramp && HARD_SLOTS.includes(slot)) return;
+      const limit = d.ramp ? Math.round(cap * d.ramp.factor) : cap;
+      const room = Math.min(d.window.minutesFree - (slot.startsWith('kraft') ? travel : 0), limit);
       if (room < 30) return;
       const session = buildSession(slot, w, prog, settings, room);
       if (session.durationMin <= room + 10) out[slot] = session;
@@ -217,7 +257,9 @@ export function planWeek(isoDate, shiftConfig, settings) {
     const slots = byDay[i];
     let session;
     let extra = null;
-    if (slots.length) {
+    if (d.key === 'krank') {
+      session = sickDay();
+    } else if (slots.length) {
       session = candidates[i][slots[0]];
       if (slots.length > 1) extra = candidates[i][slots[1]];
     } else if (d.key === 'tag') {
@@ -232,6 +274,7 @@ export function planWeek(isoDate, shiftConfig, settings) {
       slot: slots[0] || session.slot,
       session,
       extra,
+      ramp: d.ramp,
       why: explain(slots[0], d, days, byDay),
       dutyLoad: Math.round(dutyMinutes(d.key) * (d.key === 'tag' ? 0.08 : 0.1)),
     };
@@ -252,12 +295,21 @@ export function planWeek(isoDate, shiftConfig, settings) {
 }
 
 function explain(slot, day, days, byDay) {
+  if (day.key === 'krank') {
+    return 'Krank gemeldet. Es wird nicht trainiert, sondern auskuriert – und danach vorsichtig wieder eingestiegen.';
+  }
   if (!slot) {
+    if (day.ramp) {
+      return `Wiedereinstieg nach der Erkrankung, Tag ${day.ramp.dayIndex} von ${day.ramp.rampDays}. Ruhetag, weil der Körper die Erholung gerade noch woanders braucht.`;
+    }
     if (day.key === 'tag') return 'Tagschicht: 12 Stunden Dienst plus Anfahrt. Nur Mobility, alles andere geht auf die Erholung.';
     if (day.key === 'nacht_folge') return 'Zweite Nacht in Folge – der Morgenschlaf ersetzt keine Nacht. Ruhetag schützt die harten Einheiten der Woche.';
     return 'Bewusster Ruhetag: Er hält den Abstand zwischen den harten Reizen groß genug.';
   }
   const parts = [];
+  if (day.ramp) {
+    parts.push(`Wiedereinstieg nach der Erkrankung, Tag ${day.ramp.dayIndex} von ${day.ramp.rampDays}: nichts Hartes, Umfang auf ${Math.round(day.ramp.factor * 100)} %.`);
+  }
   if (day.key === 'frei') parts.push('Freier Tag – das beste Fenster der Woche.');
   if (day.key === 'frei_vor_tag') parts.push('Frei, aber um 22:00 ins Bett: Einheit am Vormittag, Abend bleibt ruhig.');
   if (day.key === 'nacht') parts.push('Vormittag vor der Nachtschicht: ausgeschlafen und mit Abstand zum Vorschlaf.');
@@ -279,7 +331,9 @@ function explain(slot, day, days, byDay) {
  */
 export function applyDirective(entry, directive) {
   const s = entry.session;
-  if (!s || s.kind === 'rest') return { session: s, changed: false, note: null };
+  // Ruhetage und Krankheitstage werden nicht nachjustiert – da gibt es nichts
+  // zu kürzen oder zu ersetzen.
+  if (!s || s.kind === 'rest' || s.kind === 'sick') return { session: s, changed: false, note: null };
   if (directive.volume >= 1 && directive.allowHard) return { session: s, changed: false, note: null };
 
   if (directive.volume === 0) {

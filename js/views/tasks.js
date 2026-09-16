@@ -2,6 +2,7 @@
 
 import { esc, icon } from '../ui/dom.js';
 import { progressRing } from '../ui/charts.js';
+import { shiftColor } from '../ui/components.js';
 import { CATEGORIES, streak, completionRate, dueOn } from '../core/tasks.js';
 import { addDays, shortDate } from '../core/util.js';
 
@@ -44,7 +45,6 @@ function heatGrid(habits, days, done, shiftDayFor, todayIso) {
   if (!habits.length) return '<div class="empty tiny">Keine Gewohnheiten angelegt.</div>';
 
   const shiftDays = days.map((d) => shiftDayFor(d));
-  const hue = (raw) => (raw === 'T' ? 'var(--shift-t)' : raw === 'N' ? 'var(--shift-n)' : 'var(--shift-f)');
 
   // Kopfzeile ist der Dienst des Tages, nicht der Wochentag: "Mo" und "Mi"
   // wären auf einen Buchstaben gekürzt beide "M", und der Dienst sagt hier
@@ -52,7 +52,7 @@ function heatGrid(habits, days, done, shiftDayFor, todayIso) {
   const header = `<div class="heat__row" style="--cols:${days.length}">
     <span class="tiny muted">Dienst</span>
     ${shiftDays.map((sd, i) => `<span class="heat__head ${days[i] === todayIso ? 'heat__head--today' : ''}"
-        style="color:${hue(sd.raw)}" title="${esc(`${shortDate(days[i])} · ${sd.label}`)}">${esc(sd.code.slice(0, 1))}</span>`).join('')}
+        style="color:${shiftColor(sd.raw)}" title="${esc(`${shortDate(days[i])} · ${sd.label}`)}">${esc(sd.code.slice(0, 1))}</span>`).join('')}
   </div>`;
 
   const rows = habits.map((t) => `

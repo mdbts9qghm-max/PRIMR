@@ -2,11 +2,11 @@
 // Schichtplan und die Detailansicht eines Plantages.
 
 import { esc, icon } from '../ui/dom.js';
-import { shiftBadge, sessionCard } from '../ui/components.js';
-import { longDate, shortDate, weekdayShort, addDays } from '../core/util.js';
+import { shiftBadge, sessionCard, shiftColor } from '../ui/components.js';
+import { longDate, shortDate, weekdayShort, addDays, daysBetween } from '../core/util.js';
 import { CATEGORIES } from '../core/tasks.js';
 import { MARKERS } from './stats.js';
-import { BLOCK_POSITIONS, DAY_TYPES, typeFor } from '../core/shift.js';
+import { BLOCK_POSITIONS, DAY_TYPES, ABSENCE, typeFor } from '../core/shift.js';
 import { sleepPlan } from '../core/sleep.js';
 import { VERSION } from '../version.js';
 
@@ -214,9 +214,8 @@ export function shiftSheet(ctx) {
               aria-label="Zyklustag ${i + 1}: ${esc(t.label)}">${esc(t.code)}</button>`;
   }).join('');
 
-  const overrides = Object.entries(cfg.overrides || {})
-    .filter(([date]) => date >= ctx.date)
-    .sort(([a], [b]) => (a < b ? -1 : 1));
+  const overrides = groupRanges(Object.entries(cfg.overrides || {})
+    .sort(([a], [b]) => (a < b ? -1 : 1)));
 
   return `<div class="sheet__inner">
     ${head('Schichtplan', 'T · N · Ü · DF · DF, siebenmal – 35 Tage')}
@@ -283,30 +282,94 @@ export function shiftSheet(ctx) {
       </div>
     </div>
 
+    <div class="card">
+      <div class="card__head">
+        <h3 class="card__title">Urlaub, Krankheit, Zusatzdienst</h3>
+        <span class="card__meta">überschreibt einzelne Tage</span>
+      </div>
+      <p class="small secondary">
+        Der Zyklus bleibt unberührt – nur die ausgewählten Tage werden ersetzt.
+        Urlaub plant die App wie einen dienstfreien Tag. Bei Krankheit wird nicht
+        trainiert, und danach steigt der Plan bewusst langsam wieder ein.
+      </p>
+
+      <form id="absence-form" class="stack" style="margin-top:14px">
+        <div class="row" style="gap:10px">
+          <div class="field grow">
+            <label class="field__label" for="f-from">Von</label>
+            <input id="f-from" name="from" type="date" value="${esc(ctx.date)}">
+          </div>
+          <div class="field grow">
+            <label class="field__label" for="f-to">Bis</label>
+            <input id="f-to" name="to" type="date" value="${esc(ctx.date)}">
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Was trägst du ein?</span>
+          <div class="row wrap" style="gap:6px">
+            ${[['U', 'Urlaub'], ['K', 'Krank'], ['F', 'Dienstfrei'], ['T', 'Tagschicht'], ['N', 'Nachtschicht']].map(([code, label]) => `
+              <button type="button" class="chip ${code === 'U' ? 'chip--on' : ''}"
+                      data-action="pick" data-field="absence" data-value="${code}">
+                <span class="chip__dot" style="background:${shiftColor(code)}"></span>${esc(label)}
+              </button>`).join('')}
+          </div>
+          <input type="hidden" name="absence" value="U">
+          <div class="field__hint">${esc(ABSENCE.K.hint)}</div>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit" data-action="save-absence">Eintragen</button>
+      </form>
+    </div>
+
     ${overrides.length ? `
     <div class="card">
       <div class="card__head">
-        <h3 class="card__title">Abweichungen</h3>
-        <span class="card__meta">${overrides.length} Tag${overrides.length === 1 ? '' : 'e'}</span>
+        <h3 class="card__title">Eingetragene Abweichungen</h3>
+        <span class="card__meta">${overrides.length} Zeitraum${overrides.length === 1 ? '' : 'e'}</span>
       </div>
       <div class="list">
-        ${overrides.map(([date, raw]) => `<div class="list__item">
+        ${overrides.map((r) => `<div class="list__item">
+          <span class="strip__cell" style="background:${shiftColor(r.raw)};width:30px;height:30px;flex:none;aspect-ratio:auto">${esc(r.raw === 'F' ? 'DF' : r.raw)}</span>
           <div class="grow">
-            <div class="small">${esc(longDate(date))}</div>
-            <div class="tiny muted">${raw === 'T' ? 'Tagschicht' : raw === 'N' ? 'Nachtschicht' : 'dienstfrei'} statt Regeldienst</div>
+            <div class="small">${esc(rangeLabel(r))}</div>
+            <div class="tiny muted">${esc(rawLabel(r.raw))}${r.days > 1 ? ` · ${r.days} Tage` : ''}</div>
           </div>
-          <button class="btn btn--sm btn--ghost" data-action="clear-override" data-date="${esc(date)}">Zurücksetzen</button>
+          <button class="btn btn--sm btn--ghost" data-action="clear-range"
+                  data-from="${esc(r.from)}" data-to="${esc(r.to)}">Entfernen</button>
         </div>`).join('')}
       </div>
     </div>` : ''}
-
-    <div class="card">
-      <p class="tiny muted">
-        Zusatzdienste, die kurzfristig angeordnet werden, trägst du direkt am Tag ein:
-        im Trainings-Tab den Tag öffnen und dort den Dienst ändern. Der Zyklus bleibt davon unberührt.
-      </p>
-    </div>
   </div>`;
+}
+
+function rawLabel(raw) {
+  return {
+    T: 'Tagschicht statt Regeldienst',
+    N: 'Nachtschicht statt Regeldienst',
+    F: 'dienstfrei statt Regeldienst',
+    U: 'Urlaub – wird wie ein freier Tag geplant',
+    K: 'Krank – kein Training, danach vorsichtiger Wiedereinstieg',
+  }[raw] || raw;
+}
+
+function rangeLabel(r) {
+  return r.days === 1 ? longDate(r.from) : `${shortDate(r.from)} – ${shortDate(r.to)}`;
+}
+
+/** Aufeinanderfolgende Tage derselben Art zu einem Zeitraum zusammenfassen. */
+function groupRanges(entries) {
+  const out = [];
+  entries.forEach(([date, raw]) => {
+    const last = out[out.length - 1];
+    if (last && last.raw === raw && daysBetween(last.to, date) === 1) {
+      last.to = date;
+      last.days += 1;
+    } else {
+      out.push({ from: date, to: date, raw, days: 1 });
+    }
+  });
+  return out;
 }
 
 /* ---------------- Einstellungen ---------------- */
@@ -394,12 +457,15 @@ export function daySheet(ctx, entry) {
           <span class="disclose__chev">${icon('chevron')}</span>
         </button>
         <div class="disclose__body">
-          <p class="tiny muted">Für kurzfristig angeordnete Zusatzdienste, Tausch oder Urlaub.
-          Der Zyklus selbst bleibt unverändert, nur dieser Tag wird überschrieben.</p>
-          <div class="seg" role="group" style="margin-top:10px">
-            ${[['T', 'Tagschicht'], ['N', 'Nachtschicht'], ['F', 'dienstfrei']].map(([code, label]) => `
-              <button data-action="set-override" data-date="${esc(entry.date)}" data-raw="${code}"
-                      aria-pressed="${raw === code}">${esc(label)}</button>`).join('')}
+          <p class="tiny muted">Für kurzfristig angeordnete Zusatzdienste, Tausch, Urlaub oder Krankheit.
+          Der Zyklus selbst bleibt unverändert, nur dieser Tag wird überschrieben. Längere Zeiträume
+          trägst du bequemer unter Einstellungen → Schichtplan ein.</p>
+          <div class="row wrap" style="gap:6px;margin-top:10px">
+            ${[['T', 'Tagschicht'], ['N', 'Nachtschicht'], ['F', 'Dienstfrei'], ['U', 'Urlaub'], ['K', 'Krank']].map(([code, label]) => `
+              <button class="chip ${raw === code ? 'chip--on' : ''}"
+                      data-action="set-override" data-date="${esc(entry.date)}" data-raw="${code}">
+                <span class="chip__dot" style="background:${shiftColor(code)}"></span>${esc(label)}
+              </button>`).join('')}
           </div>
           ${entry.shift.overridden ? `<button class="btn btn--ghost btn--block btn--sm" style="margin-top:10px"
             data-action="clear-override" data-date="${esc(entry.date)}">Auf den Regeldienst zurücksetzen</button>` : ''}

@@ -115,6 +115,7 @@ export function build(isoDate = todayIso()) {
     plan,
     entry,
     session: adjusted ? adjusted.session : null,
+    ramp: entry ? entry.ramp : null,
     extra: adjustedExtra ? adjustedExtra.session : null,
     sessionChanged: adjusted ? adjusted.changed : false,
     sessionNote: adjusted ? adjusted.note : null,

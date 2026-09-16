@@ -4,7 +4,7 @@ import * as store from './core/store.js';
 import * as ctxBuilder from './core/context.js';
 import { esc, icon, on, toast, $ } from './ui/dom.js';
 import { wireChartReadout } from './ui/charts.js';
-import { today as todayIso, longDate, shortDate, uid, weekStart, addDays } from './core/util.js';
+import { today as todayIso, longDate, shortDate, uid, weekStart, addDays, daysBetween } from './core/util.js';
 import { createTask } from './core/tasks.js';
 import { shiftDay, DEFAULT_CYCLE } from './core/shift.js';
 import { VERSION } from './version.js';
@@ -268,6 +268,30 @@ function pickSession(c, slot) {
   return c.session || (c.entry && c.entry.session) || null;
 }
 
+/**
+ * Urlaub, Krankheit oder ein Zusatzdienst über einen Zeitraum. Der Zyklus
+ * bleibt unangetastet, überschrieben werden nur die einzelnen Tage.
+ */
+function saveAbsence(form) {
+  const from = form.elements.from.value;
+  const to = form.elements.to.value || from;
+  const raw = form.elements.absence.value;
+  if (!from) { toast('Kein Datum gewählt'); return; }
+  if (to < from) { toast('Das Ende liegt vor dem Anfang'); return; }
+
+  const span = daysBetween(from, to) + 1;
+  if (span > 120) { toast('Höchstens 120 Tage am Stück'); return; }
+
+  store.update((s) => {
+    for (let d = from; d <= to; d = addDays(d, 1)) s.shift.overrides[d] = raw;
+  });
+  ctxBuilder.invalidate();
+  app.sheet = null;
+  const label = { U: 'Urlaub', K: 'Krankheit', F: 'Dienstfrei', T: 'Tagschicht', N: 'Nachtschicht' }[raw];
+  toast(`${label} für ${span} Tag${span === 1 ? '' : 'e'} eingetragen`);
+  render();
+}
+
 /* ---------------- Aktionen ---------------- */
 
 const actions = {
@@ -434,6 +458,16 @@ const actions = {
     render();
   },
 
+  'clear-range': (e, el) => {
+    const { from, to } = el.dataset;
+    store.update((s) => {
+      for (let d = from; d <= to; d = addDays(d, 1)) delete s.shift.overrides[d];
+    });
+    ctxBuilder.invalidate();
+    toast('Zeitraum entfernt');
+    render();
+  },
+
   'clear-override': (e, el) => {
     store.update((s) => { delete s.shift.overrides[el.dataset.date]; });
     ctxBuilder.invalidate();
@@ -534,6 +568,7 @@ function boot() {
     else if (form.id === 'task-form') saveTask(form, form.querySelector('[data-action="save-task"]').dataset.id);
     else if (form.id === 'marker-form') saveMarker(form);
     else if (form.id === 'settings-form') saveSettings(form);
+    else if (form.id === 'absence-form') saveAbsence(form);
     else if (form.id === 'complete-form') {
       const btn = form.querySelector('[data-action="save-complete"]');
       saveComplete(form, btn.dataset.date, btn.dataset.slot);

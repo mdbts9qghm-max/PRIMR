@@ -4,8 +4,9 @@
 import assert from 'node:assert/strict';
 import { shiftDay, DEFAULT_CYCLE, trainingWindow, typeFor } from '../js/core/shift.js';
 import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff } from '../js/core/sleep.js';
-import { planWeek, progression, weekIndex, loadBalance } from '../js/core/plan.js';
+import { planWeek, progression, weekIndex, loadBalance, illnessRamp, MAX_RAMP_DAYS } from '../js/core/plan.js';
 import { HARD_SLOTS } from '../js/core/library.js';
+import { KIND_LABEL } from '../js/ui/components.js';
 import { readiness, baselines, trainingDirective, BANDS } from '../js/core/readiness.js';
 import { defaultHabits, dueOn, createTask } from '../js/core/tasks.js';
 import { addDays, weekStart, hhmm, minutes } from '../js/core/util.js';
@@ -241,6 +242,125 @@ test('Planer ist deterministisch', () => {
   const a = planWeek('2026-02-02', CONFIG, SETTINGS);
   const b = planWeek('2026-02-02', CONFIG, SETTINGS);
   assert.deepEqual(a.days.map((d) => d.slot), b.days.map((d) => d.slot));
+});
+
+/* ---------- Urlaub und Krankheit ---------- */
+
+function withOverrides(overrides) {
+  return { ...CONFIG, overrides };
+}
+
+test('Urlaub wird wie ein dienstfreier Tag geplant', () => {
+  // 2026-01-05 wäre eine Tagschicht.
+  const cfg = withOverrides({ '2026-01-05': 'U' });
+  const day = shiftDay(cfg, '2026-01-05');
+  assert.equal(day.key, 'frei');
+  assert.equal(day.code, 'U');
+  assert.equal(day.label, 'Urlaub');
+  assert.equal(day.absence, 'U');
+});
+
+test('Urlaub direkt vor einer Tagschicht behält die frühe Bettzeit', () => {
+  // 2026-01-09 ist DF vor der Tagschicht am 10.01.
+  const cfg = withOverrides({ '2026-01-09': 'U' });
+  const day = shiftDay(cfg, '2026-01-09');
+  assert.equal(day.key, 'frei_vor_tag');
+  assert.equal(sleepPlan(day.key, day.prevKey, day.nextKey).after.from, '22:00');
+});
+
+test('Urlaub direkt nach einer Nachtschicht bleibt der Ü-Tag', () => {
+  const cfg = withOverrides({ '2026-01-07': 'U' });
+  assert.equal(shiftDay(cfg, '2026-01-07').key, 'schlaftag');
+});
+
+test('Ein Urlaubsblock bekommt durchgehend Trainingstage', () => {
+  const overrides = {};
+  for (let i = 0; i < 7; i += 1) overrides[addDays('2026-01-05', i)] = 'U';
+  const plan = planWeek('2026-01-05', withOverrides(overrides), SETTINGS);
+  assert.equal(plan.runs, 3);
+  assert.equal(plan.strength, 3);
+  plan.days.forEach((d) => assert.equal(d.shift.code, 'U'));
+});
+
+test('An einem Krankheitstag wird nicht trainiert', () => {
+  const cfg = withOverrides({ '2026-01-08': 'K' });
+  const plan = planWeek('2026-01-05', cfg, SETTINGS);
+  const sick = plan.days.find((d) => d.date === '2026-01-08');
+  assert.equal(sick.shift.key, 'krank');
+  assert.equal(sick.session.kind, 'sick');
+  assert.equal(sick.session.load, 0);
+  assert.equal(sick.extra, null);
+});
+
+test('Krank schlägt jeden Dienst des Zyklus', () => {
+  // 2026-01-05 wäre Tagschicht, 06.01. Nachtschicht.
+  const cfg = withOverrides({ '2026-01-05': 'K', '2026-01-06': 'K' });
+  assert.equal(shiftDay(cfg, '2026-01-05').key, 'krank');
+  assert.equal(shiftDay(cfg, '2026-01-06').key, 'krank');
+});
+
+test('Krank heißt zehn Stunden Schlafsoll statt sechs', () => {
+  assert.equal(sleepTargetHours('krank', 'krank'), 10);
+  assert.equal(sleepPlan('krank', 'krank', 'krank').naps.length, 1);
+});
+
+test('Die Bereitschaft erlaubt am Krankheitstag kein Training', () => {
+  const d = trainingDirective(95, 'krank');
+  assert.equal(d.volume, 0);
+  assert.equal(d.allowHard, false);
+});
+
+test('Nach der Erkrankung folgt ein Tag Wiedereinstieg je Krankheitstag', () => {
+  const cfg = withOverrides({ '2026-02-01': 'K', '2026-02-02': 'K', '2026-02-03': 'K' });
+  assert.equal(illnessRamp(cfg, '2026-02-04').rampDays, 3);
+  assert.equal(illnessRamp(cfg, '2026-02-04').dayIndex, 1);
+  assert.equal(illnessRamp(cfg, '2026-02-06').dayIndex, 3);
+  assert.equal(illnessRamp(cfg, '2026-02-07'), null, 'nach der Rampe wieder normal');
+});
+
+test('Der Wiedereinstieg dauert mindestens zwei und höchstens sieben Tage', () => {
+  const kurz = withOverrides({ '2026-02-01': 'K' });
+  assert.equal(illnessRamp(kurz, '2026-02-02').rampDays, 2);
+
+  const lang = {};
+  for (let i = 0; i < 14; i += 1) lang[addDays('2026-02-01', i)] = 'K';
+  assert.equal(illnessRamp(withOverrides(lang), '2026-02-15').rampDays, MAX_RAMP_DAYS);
+});
+
+test('Während der Krankheit selbst läuft keine Rampe', () => {
+  const cfg = withOverrides({ '2026-02-01': 'K', '2026-02-02': 'K' });
+  assert.equal(illnessRamp(cfg, '2026-02-02'), null);
+});
+
+test('Im Wiedereinstieg steht keine harte Einheit', () => {
+  const overrides = {};
+  for (let i = 0; i < 4; i += 1) overrides[addDays('2026-01-05', i)] = 'K';
+  const plan = planWeek('2026-01-05', withOverrides(overrides), SETTINGS);
+  plan.days.filter((d) => d.ramp).forEach((d) => {
+    [d.session, d.extra].filter(Boolean).forEach((session) => {
+      assert.equal(session.hard, false, `${d.date}: ${session.title} ist hart`);
+    });
+  });
+  assert.ok(plan.days.some((d) => d.ramp), 'keine Rampe im Plan');
+});
+
+test('Jede Einheitenart hat eine Beschriftung im Wochenstreifen', () => {
+  // Ohne diese Prüfung stand im Streifen "undefined", sobald eine neue Art
+  // dazukam – zuletzt bei den Krankheitstagen.
+  const overrides = { '2026-01-05': 'K', '2026-01-06': 'U' };
+  const plan = planWeek('2026-01-05', withOverrides(overrides), SETTINGS);
+  const kinds = new Set(plan.days.flatMap((d) => [d.session, d.extra].filter(Boolean).map((x) => x.kind)));
+  kinds.forEach((kind) => {
+    assert.ok(KIND_LABEL[kind], `keine Beschriftung für die Art "${kind}"`);
+  });
+});
+
+test('Nach dem Wiedereinstieg kehren harte Einheiten zurück', () => {
+  const overrides = {};
+  for (let i = 0; i < 2; i += 1) overrides[addDays('2026-01-05', i)] = 'K';
+  const plan = planWeek('2026-01-05', withOverrides(overrides), SETTINGS);
+  const later = plan.days.filter((d) => !d.ramp && d.shift.key !== 'krank');
+  assert.ok(later.some((d) => d.session.hard), 'die Woche bleibt komplett weich');
 });
 
 /* ---------- Progression ---------- */

@@ -555,3 +555,5 @@ textarea { min-height: 80px; resize: vertical; }
   animation: rise 0.22s ease;
 }
 .update-bar button { flex: none; }
+
+.badge--krank { background: rgba(230,103,103,0.15); color: #f0918f; border-color: rgba(230,103,103,0.4); }

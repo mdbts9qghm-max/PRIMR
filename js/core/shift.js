@@ -5,6 +5,11 @@
 // dienstfrei (F) ist. Ü und die beiden DF-Tage ergeben sich aus der Lage:
 // der freie Tag direkt nach einer Nacht ist der Ü-Tag, der freie Tag direkt
 // vor einer Tagschicht ist der zweite DF-Tag mit der früheren Bettzeit.
+//
+// Dazu kommen zwei Abwesenheiten, die nur als Ausnahme für einzelne Tage
+// eingetragen werden: U (Urlaub) verhält sich in jeder Hinsicht wie ein
+// dienstfreier Tag und wird nur anders beschriftet. K (krank) ist ein
+// eigener Tagtyp – dort wird nicht trainiert, sondern auskuriert.
 
 import { daysBetween, addDays, minutes, hhmm } from './util.js';
 
@@ -22,6 +27,12 @@ export const BLOCK_POSITIONS = [
   { index: 3, code: 'DF', key: 'frei', label: 'DF – erster freier Tag' },
   { index: 4, code: 'DF', key: 'frei_vor_tag', label: 'DF – vor der Tagschicht' },
 ];
+
+/** Abwesenheiten, die einzelne Tage überschreiben. */
+export const ABSENCE = {
+  U: { raw: 'U', code: 'U', label: 'Urlaub', hint: 'Zählt als dienstfrei – der Plan nutzt den Tag wie einen DF-Tag.' },
+  K: { raw: 'K', code: 'K', label: 'Krank', hint: 'Kein Training. Die App plant Erholung und einen vorsichtigen Wiedereinstieg.' },
+};
 
 export const DAY_TYPES = {
   tag: {
@@ -78,6 +89,15 @@ export const DAY_TYPES = {
     capacity: 5,
     note: 'Ganzer Tag verfügbar. Hier liegen die großen Einheiten.',
   },
+  krank: {
+    key: 'krank',
+    code: 'K',
+    label: 'Krank',
+    short: 'K',
+    work: null,
+    capacity: 0,
+    note: 'Auskurieren. Training kostet heute Substanz, die für die Genesung gebraucht wird.',
+  },
 };
 
 /**
@@ -102,12 +122,20 @@ export function rawFor(config, isoDate) {
   return config.cycle[cycleIndex(config, isoDate) % len];
 }
 
-/** Abgeleiteter Tagtyp – hängt vom Vor- und Folgetag ab. */
+/**
+ * Abgeleiteter Tagtyp – hängt vom Vor- und Folgetag ab.
+ *
+ * Urlaub ist hier bewusst kein eigener Typ: Er verhält sich wie ein freier
+ * Tag und durchläuft dieselbe Ableitung. Ein Urlaubstag direkt vor einer
+ * Tagschicht bekommt also die frühere Bettzeit, ein Urlaubstag direkt nach
+ * einer Nacht bleibt der Ü-Tag – beides ist richtig so.
+ */
 export function typeFor(config, isoDate) {
   const raw = rawFor(config, isoDate);
   const prev = rawFor(config, addDays(isoDate, -1));
   const next = rawFor(config, addDays(isoDate, 1));
 
+  if (raw === 'K') return 'krank';
   if (raw === 'T') return 'tag';
   if (raw === 'N') return prev === 'N' ? 'nacht_folge' : 'nacht';
   if (prev === 'N') return 'schlaftag';
@@ -117,15 +145,28 @@ export function typeFor(config, isoDate) {
 
 export function shiftDay(config, isoDate) {
   const key = typeFor(config, isoDate);
-  return {
+  const raw = rawFor(config, isoDate);
+  const day = {
     date: isoDate,
-    raw: rawFor(config, isoDate),
+    raw,
     prevKey: typeFor(config, addDays(isoDate, -1)),
     nextKey: typeFor(config, addDays(isoDate, 1)),
     index: cycleIndex(config, isoDate),
     overridden: Boolean(config.overrides && config.overrides[isoDate]),
+    absence: ABSENCE[raw] ? raw : null,
     ...DAY_TYPES[key],
   };
+
+  // Urlaub plant wie ein freier Tag, heißt aber Urlaub.
+  if (raw === 'U') {
+    day.code = 'U';
+    day.short = 'U';
+    day.label = key === 'frei_vor_tag' ? 'Urlaub (vor Tagschicht)' : 'Urlaub';
+    day.note = key === 'frei_vor_tag'
+      ? 'Letzter Urlaubstag vor der Tagschicht – abends um 22:00 ins Bett.'
+      : 'Urlaub. Der Plan behandelt den Tag wie einen dienstfreien Tag.';
+  }
+  return day;
 }
 
 export function cycleWindow(config, startIso, length = CYCLE_LENGTH) {
@@ -148,6 +189,9 @@ export function trainingWindow(dayKey) {
       return { from: '15:30', to: '19:00', minutesFree: 150, quality: 'Nachmittag nach dem Schlaf, Bett erst um 00:00' };
     case 'frei_vor_tag':
       return { from: '09:30', to: '13:00', minutesFree: 150, quality: 'Vormittag, der Abend bleibt ruhig' };
+    case 'krank':
+      // minutesFree 0: hier passt bewusst keine Einheit hinein.
+      return { from: '11:00', to: '12:00', minutesFree: 0, quality: 'kein Training – höchstens ein kurzer Spaziergang' };
     default:
       return { from: '09:30', to: '13:00', minutesFree: 180, quality: 'dienstfrei, der ganze Tag steht offen' };
   }

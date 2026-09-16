@@ -72,12 +72,24 @@ Schichtplan* auswählen, welchen Dienst man heute hat. Damit liegt der ganze
 Zyklus auf dem Kalender. Der 35-Tage-Raster lässt sich dort auch von Hand
 ändern, falls sich der Dienstplan grundsätzlich ändert.
 
-### Zusatzdienste
+### Abwesenheiten und Zusatzdienste
 
-Kurzfristig angeordnete Dienste, Tausch oder Urlaub werden pro Tag
-überschrieben: im Trainings-Tab den Tag öffnen und dort den Dienst ändern. Der
-Zyklus selbst bleibt unberührt, und die Planung rechnet ab sofort mit dem
-geänderten Tag.
+Einzelne Tage lassen sich überschreiben, ohne den Zyklus zu verbiegen. Für
+längere Zeiträume gibt es unter *Einstellungen → Schichtplan* ein Von-Bis-Feld,
+für einzelne Tage den Weg über den Trainings-Tab: Tag öffnen, Dienst ändern.
+
+| Eintrag | Wirkung |
+|---|---|
+| `U` Urlaub | Verhält sich in jeder Hinsicht wie ein dienstfreier Tag und durchläuft dieselbe Ableitung: Urlaub direkt vor einer Tagschicht bekommt die frühere Bettzeit, Urlaub direkt nach einer Nacht bleibt der Ü-Tag. |
+| `K` Krank | Eigener Tagtyp. Kein Training, zehn Stunden Schlafsoll statt sechs, Mittagsschlaf, und eine Karte mit dem, was tatsächlich hilft. |
+| `T` / `N` / `F` | Angeordneter Zusatzdienst, Tausch oder ein zusätzlich freier Tag. |
+
+**Wiedereinstieg nach Krankheit.** Nach einem Infekt sofort wieder hart zu
+trainieren ist der Fehler, der aus drei Krankheitstagen drei verlorene Wochen
+macht. Die App hält deshalb für jeden Krankheitstag einen Tag ohne harte Reize
+frei – mindestens zwei, höchstens sieben – und fährt den Umfang in dieser Zeit
+gestaffelt von 45 % wieder hoch. Der Heute-Tab zeigt, an welchem Tag der Phase
+du stehst und ab wann wieder normal geplant wird.
 
 ## Wie der Trainingsplan entsteht
 

@@ -53,8 +53,9 @@ export function dayTimeline(dayKey, prevKey = null, nextKey = null, opts = {}) {
     const win = trainingWindow(dayKey);
     segments.push({
       ...ROLES.training,
-      // An der Tagschicht bleibt nur Mobility – das soll der Strahl auch sagen.
-      label: type.capacity > 0 ? ROLES.training.label : 'Mobility-Fenster',
+      // An der Tagschicht bleibt nur Mobility, bei Krankheit höchstens ein
+      // Spaziergang – das soll der Strahl auch sagen.
+      label: dayKey === 'krank' ? 'Spaziergang' : type.capacity > 0 ? ROLES.training.label : 'Mobility-Fenster',
       soft: type.capacity === 0,
       from: minutes(win.from),
       to: minutes(win.to),
