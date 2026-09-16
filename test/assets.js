@@ -1,0 +1,101 @@
+// Prüft die Auslieferung: Version, Cache-Liste und Cache-Strategie.
+// Genau hier lag der Fehler, wegen dem eine installierte App nie wieder
+// aktualisiert wurde – diese Tests halten ihn fest.
+
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { VERSION } from '../js/version.js';
+
+const root = fileURLToPath(new URL('..', import.meta.url));
+const sw = readFileSync(join(root, 'sw.js'), 'utf8');
+
+let passed = 0;
+const failures = [];
+
+function test(name, fn) {
+  try {
+    fn();
+    passed += 1;
+  } catch (err) {
+    failures.push(`${name}\n    ${err.message.split('\n')[0]}`);
+  }
+}
+
+function walk(dir) {
+  return readdirSync(join(root, dir)).flatMap((entry) => {
+    const abs = join(root, dir, entry);
+    const rel = relative(root, abs).split('\\').join('/');
+    return statSync(abs).isDirectory() ? walk(rel) : [rel];
+  });
+}
+
+test('sw.js und js/version.js nennen dieselbe Version', () => {
+  const match = sw.match(/const VERSION = '([^']+)'/);
+  assert.ok(match, 'sw.js enthält keine Versionsangabe');
+  assert.equal(match[1], VERSION);
+});
+
+test('Der Cache-Name enthält die Version', () => {
+  assert.match(sw, /const CACHE = `primr-\$\{VERSION\}`/);
+});
+
+test('Jede ausgelieferte Datei steht in der Cache-Liste', () => {
+  const files = [...walk('js'), ...walk('css')].filter((f) => f.endsWith('.js') || f.endsWith('.css'));
+  const missing = files.filter((f) => !sw.includes(`./${f}`));
+  assert.deepEqual(missing, [], `nicht im Service Worker gelistet: ${missing.join(', ')}`);
+});
+
+test('Die Cache-Liste enthält keine Datei, die es nicht gibt', () => {
+  const listed = [...sw.matchAll(/'\.\/([^']+\.(?:js|css))'/g)].map((m) => m[1]);
+  const ghosts = listed.filter((f) => {
+    try { return !statSync(join(root, f)).isFile(); } catch { return true; }
+  });
+  assert.deepEqual(ghosts, [], `gelistet, aber nicht vorhanden: ${ghosts.join(', ')}`);
+});
+
+test('Der Service Worker fragt zuerst das Netz, nicht den Cache', () => {
+  const handler = sw.slice(sw.indexOf("addEventListener('fetch'"));
+  const network = handler.indexOf('fromNetwork');
+  const cache = handler.indexOf('caches.match');
+  assert.ok(network > -1, 'kein Netzabruf im fetch-Handler');
+  assert.ok(cache > -1, 'kein Cache-Rückfall im fetch-Handler');
+  assert.ok(network < cache, 'der Cache wird vor dem Netz gefragt – dann bleibt die App auf ihrem Stand stehen');
+});
+
+test('Der Netzabruf umgeht den HTTP-Cache des Browsers', () => {
+  // Ohne cache: 'reload' liefert die Ebene unter dem Service Worker wieder
+  // die alte Datei aus – der Netz-zuerst-Ansatz liefe dann ins Leere.
+  assert.match(sw, /cache:\s*'reload'/);
+});
+
+test('Ein wartender Worker kann übernehmen', () => {
+  assert.match(sw, /skip-waiting/);
+  assert.match(sw, /skipWaiting\(\)/);
+});
+
+test('Alte Caches werden beim Aktivieren entfernt', () => {
+  assert.match(sw, /caches\.delete/);
+});
+
+test('Die Registrierung umgeht den Browser-Cache für sw.js', () => {
+  const main = readFileSync(join(root, 'js/main.js'), 'utf8');
+  assert.match(main, /updateViaCache:\s*'none'/);
+  assert.match(main, /controllerchange/);
+});
+
+test('Die erste Übernahme löst kein Neuladen aus', () => {
+  // clients.claim() beim ersten Start ist kein Update. Ohne diese Bremse
+  // wird jeder neue Nutzer einmal grundlos neu geladen.
+  const main = readFileSync(join(root, 'js/main.js'), 'utf8');
+  assert.match(main, /hadController/);
+  assert.match(main, /if \(!hadController \|\| reloading\) return;/);
+});
+
+if (failures.length) {
+  console.error(`\n${failures.length} von ${passed + failures.length} Auslieferungs-Tests fehlgeschlagen:\n`);
+  failures.forEach((f) => console.error(`  ✗ ${f}`));
+  process.exit(1);
+}
+console.log(`✓ ${passed} Auslieferungs-Tests bestanden`);

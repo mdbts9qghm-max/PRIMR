@@ -6,7 +6,8 @@
   "description": "PWA für Training, Schlaf und Aufgaben im Wechselschichtdienst",
   "scripts": {
     "start": "python3 -m http.server 8080",
-    "test": "node test/run.js",
+    "test": "node test/run.js && node test/assets.js",
+    "test:update": "node test/update-path.mjs",
     "check": "node --check js/main.js"
   }
 }

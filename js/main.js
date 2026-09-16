@@ -7,6 +7,7 @@ import { wireChartReadout } from './ui/charts.js';
 import { today as todayIso, longDate, shortDate, uid, weekStart, addDays } from './core/util.js';
 import { createTask } from './core/tasks.js';
 import { shiftDay, DEFAULT_CYCLE } from './core/shift.js';
+import { VERSION } from './version.js';
 
 import * as todayView from './views/today.js';
 import * as trainingView from './views/training.js';
@@ -447,6 +448,19 @@ const actions = {
     render();
   },
 
+  'check-update': async () => {
+    if (!('serviceWorker' in navigator)) { toast('Hier nicht verfügbar'); return; }
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) { toast('Noch nicht installiert'); return; }
+    await reg.update().catch(() => {});
+    toast(waitingWorker ? 'Neue Version gefunden' : `Aktuell – Version ${VERSION}`);
+  },
+
+  'apply-update': () => {
+    if (waitingWorker) waitingWorker.postMessage('skip-waiting');
+    else window.location.reload();
+  },
+
   'export-data': () => {
     const blob = new Blob([store.exportJson()], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -538,9 +552,74 @@ function boot() {
     }
   });
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  }
+  setupServiceWorker();
+}
+
+/* ---------------- Aktualisierung ---------------- */
+
+let waitingWorker = null;
+let reloading = false;
+
+function showUpdateBar() {
+  if (document.getElementById('update-bar')) return;
+  const el = document.createElement('div');
+  el.id = 'update-bar';
+  el.className = 'update-bar';
+  el.setAttribute('role', 'status');
+  el.innerHTML = `<span>Neue Version verfügbar</span>
+    <button class="btn btn--primary btn--sm" data-action="apply-update">Aktualisieren</button>`;
+  document.body.appendChild(el);
+}
+
+/**
+ * Der Service Worker liefert zuerst aus dem Netz und nur ersatzweise aus dem
+ * Cache. Trotzdem übernimmt ein neuer Worker erst, wenn alle alten Seiten
+ * geschlossen sind – bei einer installierten App passiert das praktisch nie.
+ * Deshalb wird hier aktiv nach Aktualisierungen gesucht und angeboten, sie
+ * sofort zu übernehmen.
+ */
+function setupServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+
+  // Beim allerersten Start übernimmt der Worker die Seite von sich aus
+  // (clients.claim). Das ist kein Update – wer hier neu lädt, schickt jeden
+  // neuen Nutzer durch einen überflüssigen Reload und kommt sich beim Laden
+  // der Module selbst in die Quere.
+  const hadController = Boolean(navigator.serviceWorker.controller);
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+
+  // updateViaCache: 'none' – sonst kann der Browser sw.js selbst
+  // zwischenspeichern und merkt die neue Fassung tagelang nicht.
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+    const track = (worker) => {
+      if (!worker) return;
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+          waitingWorker = worker;
+          showUpdateBar();
+        }
+      });
+    };
+
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      waitingWorker = reg.waiting;
+      showUpdateBar();
+    }
+    track(reg.installing);
+    reg.addEventListener('updatefound', () => track(reg.installing));
+
+    const check = () => { reg.update().catch(() => {}); };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') check();
+    });
+    setInterval(check, 60 * 60 * 1000);
+    check();
+  }).catch(() => {});
 }
 
 document.addEventListener('DOMContentLoaded', boot);

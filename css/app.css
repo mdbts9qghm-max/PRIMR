@@ -531,3 +531,27 @@ textarea { min-height: 80px; resize: vertical; }
 }
 .blockpos__cell--now { color: #06100c; border-color: transparent; }
 .blockpos__cell--past { opacity: 0.5; }
+
+/* ---------- Hinweis auf eine neue Version ---------- */
+
+.update-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px));
+  z-index: 55;
+  max-width: 616px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px 11px 16px;
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  font-size: 14px;
+  animation: rise 0.22s ease;
+}
+.update-bar button { flex: none; }

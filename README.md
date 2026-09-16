@@ -8,7 +8,8 @@ weder Server noch Konto.
 
 ```bash
 npm start          # dann http://localhost:8080 öffnen
-npm test           # prüft die Rechenkerne (37 Tests, ohne Browser)
+npm test           # Rechenkerne und Auslieferung, ohne Browser
+npm run test:update  # Aktualisierungspfad im Browser (braucht npm start + playwright)
 ```
 
 Auf dem iPhone in Safari öffnen und über *Teilen → Zum Home-Bildschirm* ablegen.
@@ -174,6 +175,29 @@ js/views/             die fünf Tabs und die Formulare
 test/run.js           Tests der Rechenkerne
 sw.js                 Offline-Betrieb
 ```
+
+## Aktualisierung
+
+Die App liefert über den Service Worker **zuerst aus dem Netz** und nur
+ersatzweise aus dem Cache. Andersherum – so lief die erste Fassung – bleibt eine
+einmal installierte App für immer auf dem Stand ihrer Installation stehen.
+
+Drei Dinge gehören dazu, und alle drei sind nötig:
+
+1. `fetch` im Service Worker läuft mit `cache: 'reload'`. Unter dem Worker liegt
+   noch der HTTP-Cache des Browsers; ohne das liefert diese Ebene wieder die
+   alte Datei aus.
+2. Die Registrierung nutzt `updateViaCache: 'none'`, sonst speichert der Browser
+   `sw.js` selbst zwischen und bemerkt eine neue Fassung tagelang nicht.
+3. Ein wartender Worker wird nicht erzwungen, sondern angeboten: Die App zeigt
+   „Neue Version verfügbar“ mit einem Knopf. Das erste `clients.claim()` beim
+   allerersten Start löst dabei bewusst **kein** Neuladen aus – das wäre kein
+   Update, sondern nur ein überflüssiger Reload für jeden neuen Nutzer.
+
+Die laufende Version steht unter *Einstellungen → Über*, dort lässt sich auch
+von Hand nach einer Aktualisierung suchen. Beim Ausliefern einer neuen Fassung
+wird `VERSION` in `js/version.js` **und** in `sw.js` hochgezählt; ein Test
+vergleicht beide.
 
 ## Daten
 

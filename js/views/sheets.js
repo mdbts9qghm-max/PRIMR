@@ -8,6 +8,7 @@ import { CATEGORIES } from '../core/tasks.js';
 import { MARKERS } from './stats.js';
 import { BLOCK_POSITIONS, DAY_TYPES, typeFor } from '../core/shift.js';
 import { sleepPlan } from '../core/sleep.js';
+import { VERSION } from '../version.js';
 
 function head(title, subtitle) {
   return `<div class="row row--between" style="align-items:flex-start">
@@ -351,8 +352,14 @@ export function settingsSheet(ctx) {
     </div>
 
     <div class="card">
-      <div class="section-label">Über</div>
-      <p class="small secondary" style="margin-top:8px">
+      <div class="row row--between">
+        <span class="section-label">Über</span>
+        <span class="tiny muted num">Version ${esc(VERSION)}</span>
+      </div>
+      <button class="btn btn--block btn--sm" style="margin-top:12px" data-action="check-update">
+        Nach Aktualisierung suchen
+      </button>
+      <p class="small secondary" style="margin-top:12px">
         PRIMR plant Training, Schlaf und Aufgaben um den 35-Tage-Wechselschichtzyklus herum.
         Es ersetzt keine ärztliche Beratung – bei anhaltend erhöhtem Ruhepuls, Schmerzen oder
         Infektzeichen gehört das abgeklärt und nicht wegtrainiert.
