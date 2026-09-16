@@ -233,6 +233,49 @@ export function racePlan(race) {
   };
 }
 
+/**
+ * Zielverteilung der Intensität.
+ *
+ * Ein Rennen über 19 Stunden wird fast vollständig in Zone 1 und 2 gelaufen.
+ * Entsprechend gehört der Löwenanteil des Trainings dorthin – nicht, weil
+ * harte Einheiten schaden, sondern weil jede davon Erholung kostet, die für
+ * die langen Einheiten fehlt. Zone 5 hat für diese Distanz keinen Wert.
+ */
+export function zoneTargets(weeksOut) {
+  const phase = phaseFor(weeksOut);
+  switch (phase.key) {
+    case 'grundlage': return { easy: 0.80, threshold: 0.15, hard: 0.05 };
+    case 'aufbau': return { easy: 0.85, threshold: 0.12, hard: 0.03 };
+    case 'spezifisch': return { easy: 0.88, threshold: 0.10, hard: 0.02 };
+    case 'taper': return { easy: 0.85, threshold: 0.13, hard: 0.02 };
+    default: return { easy: 1, threshold: 0, hard: 0 };
+  }
+}
+
+/**
+ * Steiggeschwindigkeit, die das Rennen verlangt.
+ *
+ * Bei 4295 Höhenmetern verbringt man grob 45 % der Rennzeit im Anstieg. Aus
+ * Höhenmetern und angepeilter Zeit ergibt sich daraus eine Zahl, die man im
+ * Training direkt messen kann – anders als eine Pace, die im Gelände nichts
+ * aussagt.
+ */
+export function vertRateTarget(race) {
+  const plan = racePlan(race);
+  const climbHours = plan.targetHours * 0.45;
+  return Math.round(race.vertM / climbHours / 10) * 10;
+}
+
+/** Wie viele Stunden im Rennen auf Anstieg, Abstieg und Flaches entfallen. */
+export function terrainSplit(race) {
+  const plan = racePlan(race);
+  return {
+    climbHours: round(plan.targetHours * 0.45, 1),
+    descentHours: round(plan.targetHours * 0.38, 1),
+    flatHours: round(plan.targetHours * 0.17, 1),
+  };
+}
+
 /** Kurzfassung für die Kopfzeile: "noch 91 Wochen". */
 export function countdown(race, isoDate) {
   const days = daysBetween(isoDate, race.date);

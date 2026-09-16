@@ -2,9 +2,9 @@
 // die Progression und die Vorbelastung.
 
 import { esc, icon } from '../ui/dom.js';
-import { barChart, stackedBar, ZONE_COLORS } from '../ui/charts.js';
+import { barChart, stackedBar, meter, ZONE_COLORS } from '../ui/charts.js';
 import { sessionCard, dayRow, weekStrip, weekStripLegend, phaseBar } from '../ui/components.js';
-import { PHASES, countdown, weeksUntil } from '../core/race.js';
+import { PHASES, countdown, weeksUntil, zoneTargets } from '../core/race.js';
 import { addDays, weekStart, shortDate, weekdayShort, round, durationLabel, longDate } from '../core/util.js';
 import { weekPlan } from '../core/context.js';
 import { progression } from '../core/plan.js';
@@ -185,10 +185,38 @@ export function render(ctx) {
         value: zm[i],
         color: ZONE_COLORS[i],
       })), { ariaLabel: 'Zonenverteilung' })}
+
+      ${rc && totalRunMin ? `
+      <div class="divider" style="margin:14px 0"></div>
+      <div class="section-label" style="margin-bottom:10px">Gegen das Rennziel</div>
+      <div class="stack">
+        ${[
+          ['Locker (Z1–Z2)', zm[0] + zm[1], zoneTargets(rc.weeksOut).easy],
+          ['Schwelle (Z3)', zm[2], zoneTargets(rc.weeksOut).threshold],
+          ['Hart (Z4–Z5)', zm[3] + zm[4], zoneTargets(rc.weeksOut).hard],
+        ].map(([label, minutes, target]) => {
+          const share = minutes / totalRunMin;
+          const off = Math.abs(share - target) > 0.06;
+          return `<div>
+            <div class="row row--between">
+              <span class="small">${esc(label)}</span>
+              <span class="small num ${off ? 'tone-warn' : 'tone-good'}">
+                ${Math.round(share * 100)} % <span class="muted">/ Ziel ${Math.round(target * 100)} %</span>
+              </span>
+            </div>
+            <div style="margin-top:5px">${meter(share, Math.max(share, target), off ? 'var(--warn)' : 'var(--good)')}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="tiny muted" style="margin-top:10px">
+        Ein Rennen über ${rc.plan.targetHours} Stunden läuft fast vollständig in Zone 1 und 2.
+        Harte Einheiten schaden nicht, aber jede kostet Erholung, die für die langen Einheiten fehlt.
+        Zone 5 kommt mit diesem Ziel gar nicht mehr vor.
+      </div>` : `
       <div class="tiny muted" style="margin-top:10px">
         Der Löwenanteil gehört in Zone 1 und 2. Wenn hier zu viel Zone 3 steht, wird aus lockerem Laufen
         unbeabsichtigtes Halbgas – die teuerste Trainingsform, die es gibt.
-      </div>
+      </div>`}
     </div>
 
     <div class="card">

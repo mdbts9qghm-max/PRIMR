@@ -93,6 +93,15 @@ test('Die erste Übernahme löst kein Neuladen aus', () => {
   assert.match(main, /if \(!hadController \|\| reloading\) return;/);
 });
 
+test('Messwerte werden nicht an zwei Stellen aufgezählt', () => {
+  // Eine fest verdrahtete Liste im Speicher-Code hat dazu geführt, dass neue
+  // Marker im Formular standen, aber beim Speichern verworfen wurden.
+  const main = readFileSync(join(root, 'js/main.js'), 'utf8');
+  const saveMarker = main.slice(main.indexOf('function saveMarker'), main.indexOf('function saveSettings'));
+  assert.ok(saveMarker.includes('MARKERS.forEach'), 'saveMarker geht nicht über die Marker-Definition');
+  assert.ok(!/\['vo2max'/.test(saveMarker), 'saveMarker enthält wieder eine eigene Feldliste');
+});
+
 if (failures.length) {
   console.error(`\n${failures.length} von ${passed + failures.length} Auslieferungs-Tests fehlgeschlagen:\n`);
   failures.forEach((f) => console.error(`  ✗ ${f}`));

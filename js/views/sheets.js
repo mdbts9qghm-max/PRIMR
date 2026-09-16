@@ -9,7 +9,9 @@ import { MARKERS } from './stats.js';
 import { BLOCK_POSITIONS, DAY_TYPES, ABSENCE, typeFor } from '../core/shift.js';
 import { sleepPlan } from '../core/sleep.js';
 import { VERSION } from '../version.js';
-import { DEFAULT_RACE, racePlan, countdown, phaseFor, weeksUntil, volumePlan } from '../core/race.js';
+import {
+  DEFAULT_RACE, racePlan, countdown, phaseFor, weeksUntil, volumePlan, vertRateTarget, terrainSplit,
+} from '../core/race.js';
 
 function head(title, subtitle) {
   return `<div class="row row--between" style="align-items:flex-start">
@@ -177,6 +179,7 @@ export function taskSheet(ctx, task) {
 /* ---------------- Messung ---------------- */
 
 export function markerSheet(ctx) {
+  const s2 = ctx.state.settings;
   return `<div class="sheet__inner">
     ${head('Messung eintragen', 'Nur ausfüllen, was du gemessen hast')}
     <form id="marker-form" class="stack">
@@ -185,7 +188,8 @@ export function markerSheet(ctx) {
           <label class="field__label" for="f-date">Datum</label>
           <input id="f-date" name="date" type="date" value="${esc(ctx.date)}">
         </div>
-        ${MARKERS.map((m) => numField(m.key, `${m.label} (${m.unit})`, m.why, null, 'step="0.1"')).join('')}
+        ${MARKERS.filter((m) => !m.raceOnly || s2.race)
+          .map((m) => numField(m.key, `${m.label} (${m.unit})`, m.why, null, 'step="0.1"')).join('')}
       </div>
       <button class="btn btn--primary btn--block" type="submit" data-action="save-marker">Speichern</button>
     </form>
@@ -485,6 +489,7 @@ export function racePlanSheet(ctx) {
   const out = weeksUntil(race.date, ctx.date);
   const startOut = weeksUntil(race.date, ctx.state.settings.planStart);
   const vp = volumePlan(race, ctx.state.settings.startRunMinutes || 130, startOut);
+  const split = terrainSplit(race);
 
   return `<div class="sheet__inner">
     ${head(race.name, `${longDate(race.date)} · ${cd.text}`)}
@@ -500,6 +505,35 @@ export function racePlanSheet(ctx) {
         Kilometer extra. Das Limit entspricht ${plan.limitPace} min je Äquivalentkilometer,
         angepeilt sind <strong>${plan.targetHours} h</strong> bei ${plan.targetPace} min.
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h3 class="card__title">Was das Limit verlangt</h3><span class="card__meta">${race.limitHours} h</span></div>
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="metric__label">Steigrate</div>
+          <div class="metric__value">${vertRateTarget(race)}<span class="metric__unit"> hm/h</span></div>
+          <div class="metric__delta muted">im Anstieg</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Anstieg</div>
+          <div class="metric__value">${split.climbHours}<span class="metric__unit"> h</span></div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Abstieg</div>
+          <div class="metric__value">${split.descentHours}<span class="metric__unit"> h</span></div>
+        </div>
+      </div>
+      <div class="note" style="margin-top:12px">
+        Rund <strong>${split.climbHours} Stunden</strong> gehst du bergauf, <strong>${split.descentHours}</strong>
+        bergab und nur <strong>${split.flatHours}</strong> auf annähernd Flachem. Deshalb ist die Steigrate
+        die Zahl, an der sich alles entscheidet – eine Pace sagt in diesem Gelände nichts.
+      </div>
+      <p class="small secondary" style="margin-top:12px">
+        Miss sie in den Bergwiederholungen: Höhenmeter geteilt durch reine Anstiegszeit. Wenn du dort
+        ${vertRateTarget(race)} hm/h über mehrere Wiederholungen hältst, ohne am Limit zu sein, trägt das
+        Tempo auch über ${plan.targetHours} Stunden.
+      </p>
     </div>
 
     <div class="card">

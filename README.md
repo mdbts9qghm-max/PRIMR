@@ -136,6 +136,30 @@ Dazu zwei Inhalte, die sich aus diesem Rennen ergeben: **Doppeltage** (zwei lang
 Tage hintereinander erzeugen den Zustand der Stunden 14 bis 20, ohne 14 Stunden
 am Stück zu laufen) und **Nachtläufe**, weil der Start um 23:00 Uhr liegt.
 
+### Woran der Coach sich ausrichtet
+
+Mit Ziel ändern sich nicht nur die Einheiten, sondern auch die Maßstäbe:
+
+- **Intensitätsverteilung.** Ein Rennen über 19 Stunden läuft fast vollständig
+  in Zone 1 und 2. Der Plan zielt deshalb auf 85–88 % locker, 10–13 % Schwelle
+  und höchstens 3 % hart; die Zonenkarte vergleicht die geplante Woche direkt
+  damit. **Zone 5 kommt mit Bergziel nicht mehr vor** – die Erholung, die eine
+  solche Einheit kostet, fehlt danach bei der langen Einheit.
+- **Steigrate statt Pace.** Aus 4295 hm und der angepeilten Zeit ergibt sich,
+  wie viele Höhenmeter pro Stunde im Anstieg nötig sind. Diese Zahl lässt sich in
+  den Bergwiederholungen direkt messen; eine Pace sagt im Gelände nichts.
+- **Messgrößen.** Steigrate und HF-Drift im Longrun stehen im Werte-Tab ganz
+  oben, VO2max bewusst weiter unten: Für diese Distanz entscheidet nicht die
+  Obergrenze, sondern wie lange man darunter durchhält.
+- **Kraft-Schwerpunkte.** Die Termine bleiben, die Ausrichtung wechselt:
+  Bergab-Kraft statt schwerer Beintag, Rumpf und Zugkraft für Rucksack und
+  Stöcke, Sprunggelenk und Einbeiniges für technisches Gelände. Übungen und
+  Gewichte bleiben weiterhin deine Sache.
+- **Schlüsseleinheiten werden verschoben, nicht gekürzt.** Reicht die
+  Bereitschaft an einem Tag mit langer oder intensiver Einheit nicht, schlägt
+  die App einen späteren freien Tag derselben Woche vor, statt den Reiz
+  zusammenzustreichen.
+
 ## Wie der Trainingsplan entsteht
 
 Ziel sind drei Läufe (einmal intensiv, einmal Longrun, einmal locker) und drei

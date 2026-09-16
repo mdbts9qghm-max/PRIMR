@@ -7,6 +7,7 @@ import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff } from '../js/c
 import { planWeek, progression, weekIndex, loadBalance, illnessRamp, MAX_RAMP_DAYS } from '../js/core/plan.js';
 import {
   phaseFor, volumePlan, vertTarget, phaseVert, features, MAX_WEEKLY_GROWTH,
+  zoneTargets, vertRateTarget, terrainSplit, racePlan as racePlanFn,
 } from '../js/core/race.js';
 import { HARD_SLOTS } from '../js/core/library.js';
 import { KIND_LABEL } from '../js/ui/components.js';
@@ -480,6 +481,48 @@ test('Der Taper nimmt den Umfang deutlich zurück', () => {
   const spezifisch = racePlanFor(33).progression.weeklyRunMinutes;
   const taper = racePlanFor(38).progression.weeklyRunMinutes;
   assert.ok(taper < spezifisch * 0.7, `Taper ${taper} min gegen ${spezifisch} min`);
+});
+
+test('Mit Bergziel kommt Zone 5 nicht mehr vor', () => {
+  for (let t = 0; t <= 38; t += 1) {
+    racePlanFor(t).days.forEach((d) => {
+      [d.session, d.extra].filter(Boolean).forEach((x) => {
+        (x.blocks || []).forEach((b) => {
+          assert.notEqual(b.zone, 5, `Woche ${t}: ${x.title} enthält Zone 5`);
+        });
+      });
+    });
+  }
+});
+
+test('Die Intensitätsverteilung trifft das Rennziel', () => {
+  for (let t = 10; t <= 34; t += 1) {
+    const plan = racePlanFor(t);
+    const zm = [0, 0, 0, 0, 0];
+    plan.days.forEach((d) => [d.session, d.extra].filter(Boolean).forEach((x) => {
+      (x.blocks || []).forEach((b) => { if (b.zone && b.minutes) zm[b.zone - 1] += b.minutes; });
+    }));
+    const total = zm.reduce((a, b) => a + b, 0);
+    if (total < 60) continue;
+    const easy = (zm[0] + zm[1]) / total;
+    const target = zoneTargets(plan.race.weeksOut).easy;
+    assert.ok(easy >= target - 0.12, `Woche ${t}: nur ${Math.round(easy * 100)} % locker, Ziel ${Math.round(target * 100)} %`);
+  }
+});
+
+test('Die Steigrate ergibt sich aus Höhenmetern und Zeitlimit', () => {
+  // 4295 hm, angepeilt 19,4 h, davon rund 45 % im Anstieg.
+  assert.equal(vertRateTarget(RACE), 490);
+  const split = terrainSplit(RACE);
+  assert.ok(split.climbHours > split.descentHours);
+  assert.ok(split.climbHours + split.descentHours + split.flatHours <= racePlanFn(RACE).targetHours + 0.2);
+});
+
+test('Krafteinheiten bekommen mit Bergziel den passenden Schwerpunkt', () => {
+  const mit = racePlanFor(20).days.map((d) => d.session).find((x) => x.slot === 'kraft_a');
+  assert.equal(mit.focus, 'Bergab-Kraft');
+  const ohne = planWeek('2026-09-14', CONFIG, SETTINGS).days.map((d) => d.session).find((x) => x.slot === 'kraft_a');
+  assert.equal(ohne.focus, 'Schwerer Beintag');
 });
 
 test('Ohne Ziel bleibt der Plan unverändert endlos', () => {

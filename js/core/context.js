@@ -61,6 +61,24 @@ export function sleepTargetFor(isoDate) {
   return sleepTargetHours(d.key, d.prevKey);
 }
 
+const MOVABLE = ['long', 'long_b', 'intensiv'];
+
+function suggestMove(plan, entry, directive, isoDate) {
+  if (!plan.race || !entry || directive.volume >= 1) return null;
+  if (!MOVABLE.includes(entry.slot)) return null;
+
+  const later = plan.days.filter((d) => d.date > isoDate
+    && d.session.kind === 'rest'
+    && d.shift.capacity >= 4);
+  if (!later.length) return null;
+
+  return {
+    date: later[0].date,
+    label: later[0].shift.label,
+    title: entry.session.title,
+  };
+}
+
 export function build(isoDate = todayIso()) {
   const s = store.get();
   const day = shiftDay(s.shift, isoDate);
@@ -81,6 +99,11 @@ export function build(isoDate = todayIso()) {
   const adjustedExtra = entry && entry.extra && directive.volume > 0
     ? applyDirective({ ...entry, session: entry.extra }, directive) : null;
   const logged = s.log[isoDate] || null;
+
+  // Eine gekürzte Schlüsseleinheit ist in der Rennvorbereitung schlechter als
+  // eine verschobene: Der lange Lauf ist der Reiz, um den die Woche gebaut
+  // ist. Steht später noch ein freier Tag ohne Einheit, wird er vorgeschlagen.
+  const moveTo = suggestMove(plan, entry, directive, isoDate);
 
   const tl = dayTimeline(day.key, day.prevKey, day.nextKey);
 
@@ -119,6 +142,7 @@ export function build(isoDate = todayIso()) {
     extra: adjustedExtra ? adjustedExtra.session : null,
     sessionChanged: adjusted ? adjusted.changed : false,
     sessionNote: adjusted ? adjusted.note : null,
+    moveTo,
     logged,
     tasks: tasksFor(s.tasks, isoDate, day.key),
     doneToday: s.done[isoDate] || [],

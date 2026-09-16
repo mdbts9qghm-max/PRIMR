@@ -15,6 +15,7 @@ import * as trainingView from './views/training.js';
 import * as tasksView from './views/tasks.js';
 import * as sleepView from './views/sleep.js';
 import * as statsView from './views/stats.js';
+import { MARKERS } from './views/stats.js';
 import * as sheets from './views/sheets.js';
 
 const TABS = [
@@ -203,9 +204,11 @@ function saveTask(form, id) {
 function saveMarker(form) {
   const entry = { id: uid(), date: form.elements.date.value || todayIso() };
   let any = false;
-  ['vo2max', 'thresholdHr', 'restingHr', 'hrv', 'hrr60'].forEach((k) => {
-    const v = num(form, k);
-    if (v != null) { entry[k] = v; any = true; }
+  // Die Feldliste kommt aus der Marker-Definition, nicht aus einer zweiten
+  // Aufzählung – sonst fehlt ein neuer Wert genau hier.
+  MARKERS.forEach((m) => {
+    const v = num(form, m.key);
+    if (v != null) { entry[m.key] = v; any = true; }
   });
   if (!any) { toast('Kein Wert eingetragen'); return; }
   store.update((s) => { s.markers.push(entry); });

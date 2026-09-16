@@ -4,15 +4,39 @@
 import { esc, icon } from '../ui/dom.js';
 import { lineChart, barChart } from '../ui/charts.js';
 import { addDays, shortDate, round, mean, weekStart } from '../core/util.js';
+import { vertRateTarget, racePlan } from '../core/race.js';
 
 export const MARKERS = [
+  {
+    key: 'vertRate',
+    label: 'Steigrate',
+    unit: 'hm/h',
+    better: 'up',
+    color: 'var(--accent)',
+    raceOnly: true,
+    why: 'Wie viele Höhenmeter du pro Stunde im Renntempo steigst – gemessen in den Bergwiederholungen. Im Gelände sagt eine Pace nichts aus, diese Zahl schon. Sie ist der direkteste Gradmesser dafür, ob du im Zeitlimit ankommst.',
+    target: (race, helpers) => ({
+      value: helpers.vertRateTarget(race),
+      text: `Für ${race.vertM} hm in ${helpers.targetHours} h brauchst du rund ${helpers.vertRateTarget(race)} hm/h im Anstieg.`,
+    }),
+  },
+  {
+    key: 'hfDrift',
+    label: 'HF-Drift im Longrun',
+    unit: '%',
+    better: 'down',
+    color: 'var(--shift-n)',
+    raceOnly: true,
+    why: 'Um wie viel deine Herzfrequenz in der zweiten Hälfte einer langen Einheit steigt, obwohl das Tempo gleich bleibt. Unter 5 % heißt: Die Grundlage trägt. Über 10 % heißt: zu schnell gestartet, zu wenig getrunken oder die Distanz ist noch zu lang für den jetzigen Stand.',
+    target: () => ({ value: 5, text: 'Unter 5 % ist das Ziel. Über 10 % ist ein Warnsignal.' }),
+  },
   {
     key: 'vo2max',
     label: 'VO2max',
     unit: 'ml/kg/min',
     better: 'up',
     color: 'var(--accent)',
-    why: 'Die Obergrenze deiner Ausdauerleistung. Sie steigt vor allem über intensive Intervalle und einen hohen Grundlagenumfang – in Monaten, nicht in Wochen.',
+    why: 'Die Obergrenze deiner Ausdauerleistung. Für ein Rennen über 19 Stunden ist sie der unwichtigste der hier gelisteten Werte – entscheidend ist, wie lange du unterhalb davon durchhältst, nicht wie hoch sie liegt.',
   },
   {
     key: 'thresholdHr',
@@ -84,7 +108,12 @@ export function render(ctx) {
     if (c && c.recovery != null) recovery.push({ label: shortDate(d), value: c.recovery });
   }
 
-  const cards = MARKERS.map((m) => {
+  const race = s.settings.race;
+  const cards = MARKERS.filter((m) => !m.raceOnly || race).map((m) => {
+    const target = race && m.target ? m.target(race, {
+      vertRateTarget,
+      targetHours: racePlan(race).targetHours,
+    }) : null;
     const series = markers
       .filter((x) => x[m.key] != null)
       .map((x) => ({ label: shortDate(x.date), value: x[m.key] }));
@@ -98,6 +127,11 @@ export function render(ctx) {
         <h3 class="card__title">${esc(m.label)}</h3>
         <span class="card__meta">${last == null ? 'kein Wert' : `${round(last, 1)} ${esc(m.unit)}`}</span>
       </div>
+      ${target ? `<div class="row wrap" style="gap:6px;margin-bottom:10px">
+        <span class="chip ${last != null && (m.better === 'up' ? last >= target.value : last <= target.value) ? 'chip--on' : ''}">
+          Ziel ${target.value} ${esc(m.unit)}
+        </span>
+      </div>` : ''}
       ${t != null ? `<div class="small ${good ? 'tone-good' : 'tone-warn'}" style="margin-bottom:8px">
         ${t > 0 ? '+' : ''}${round(t, 1)} ${esc(m.unit)} gegenüber der ersten Hälfte deiner Einträge
       </div>` : ''}
@@ -111,7 +145,10 @@ export function render(ctx) {
           <span>Was dieser Wert aussagt</span>
           <span class="disclose__chev">${icon('chevron')}</span>
         </button>
-        <div class="disclose__body"><p class="small secondary">${esc(m.why)}</p></div>
+        <div class="disclose__body">
+          <p class="small secondary">${esc(m.why)}</p>
+          ${target ? `<p class="small secondary" style="margin-top:8px"><strong>${esc(target.text)}</strong></p>` : ''}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -129,6 +166,11 @@ export function render(ctx) {
         Das ist im Wechselschichtdienst der stabilere Maßstab: Eine schlechte Woche verzerrt eine Zeit,
         aber nicht den Trend über vier Wochen.
       </p>
+      ${race ? `<div class="note" style="margin-top:12px">
+        Für ${esc(race.name)} zählen vor allem die beiden obersten Werte: die Steigrate, weil sie
+        direkt über das Zeitlimit entscheidet, und die HF-Drift, weil sie zeigt, ob die Grundlage
+        die Renndauer trägt. VO2max steht bewusst weiter unten.
+      </div>` : ''}
       <button class="btn btn--primary btn--block" style="margin-top:14px" data-action="new-marker">${icon('plus')} Messung eintragen</button>
     </div>
 

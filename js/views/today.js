@@ -5,7 +5,7 @@ import { esc, icon } from '../ui/dom.js';
 import { readinessRing, meter, timelineBar, timelineLegend, sparkline, progressRing } from '../ui/charts.js';
 import { sessionCard, shiftBadge, blockPosition } from '../ui/components.js';
 import { BLOCK_POSITIONS } from '../core/shift.js';
-import { longDate, round, durationLabel } from '../core/util.js';
+import { longDate, round, durationLabel, weekdayShort, shortDate } from '../core/util.js';
 import { taskList } from './tasks.js';
 
 function metric(label, value, unit, delta, deltaTone) {
@@ -177,6 +177,19 @@ export function render(ctx) {
         Keine harten Reize, Umfang auf ${Math.round(ctx.ramp.factor * 100)} %. Ab
         ${ctx.ramp.remaining === 1 ? 'morgen' : `in ${ctx.ramp.remaining} Tagen`} plant die App wieder normal.
         Wenn Ruhepuls oder HRV noch abweichen, trag lieber einen Tag mehr Krankheit ein als einen zu wenig.
+      </div>
+    </div>` : ''}
+
+    ${ctx.moveTo ? `<div class="card">
+      <div class="section-label">Vorschlag</div>
+      <p class="small secondary" style="margin-top:8px">
+        <strong>${esc(ctx.moveTo.title)}</strong> ist die Schlüsseleinheit dieser Woche. Bei deinem
+        heutigen Wert würde sie gekürzt – in der Rennvorbereitung ist es besser, sie zu verschieben.
+        Am ${esc(weekdayShort(ctx.moveTo.date))}, ${esc(shortDate(ctx.moveTo.date))} ist
+        ${esc(ctx.moveTo.label)} und noch nichts geplant.
+      </p>
+      <div class="btn-group" style="margin-top:12px">
+        <button class="btn" data-action="skip-session" data-date="${esc(ctx.date)}" data-slot="${esc(ctx.entry.slot)}">Heute auslassen</button>
       </div>
     </div>` : ''}
 

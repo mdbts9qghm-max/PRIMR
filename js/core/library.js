@@ -88,9 +88,19 @@ function cooldown(min = 10) {
   return { label: 'Auslaufen', detail: `${min} min sehr locker`, zone: 1, minutes: min };
 }
 
-/** Intensive Laufeinheit für Wochenindex w und Gesamtdauer targetMin. */
-export function intensivSession(w, targetMin) {
-  const tpl = INTENSIV_ROTATION[w % INTENSIV_ROTATION.length];
+/**
+ * Intensive Laufeinheit für Wochenindex w und Gesamtdauer targetMin.
+ *
+ * maxZone begrenzt, welche Formen überhaupt infrage kommen. Für ein Rennen
+ * über 19 Stunden hat Zone 5 keinen Wert – die Erholung, die eine solche
+ * Einheit kostet, fehlt danach bei der langen Einheit, und genau die
+ * entscheidet über das Ziel.
+ */
+export function intensivSession(w, targetMin, opts = {}) {
+  const pool = opts.maxZone
+    ? INTENSIV_ROTATION.filter((r) => r.zone <= opts.maxZone)
+    : INTENSIV_ROTATION;
+  const tpl = (pool.length ? pool : INTENSIV_ROTATION)[w % (pool.length || INTENSIV_ROTATION.length)];
   let reps = tpl.reps(w);
   const repMin = tpl.repMin(w);
   const wu = 12;
@@ -373,18 +383,25 @@ const STRENGTH_TEMPLATES = {
     focus: 'Schwerer Beintag',
     hard: true,
     note: 'Schwere Beinarbeit hält der Plan mindestens einen Tag von harten Läufen fern. Was du machst und mit welchem Gewicht, entscheidest du.',
+    // Mit Bergziel bekommt derselbe Termin einen anderen Schwerpunkt.
+    raceFocus: 'Bergab-Kraft',
+    raceNote: 'Bei 4295 Höhenmetern bergab entscheidet die Belastbarkeit des Quadrizeps über die letzten 25 Kilometer. Der Schwerpunkt liegt auf dem Nachgeben unter Last – was du dafür machst, entscheidest du.',
   },
   kraft_b: {
     title: 'Kraft B · Oberkörper',
     focus: 'Druck und Zug',
     hard: false,
     note: 'Die verträglichste Einheit der Woche – sie belastet die Beine nicht und darf deshalb auch neben einem Lauftag stehen.',
+    raceFocus: 'Rumpf, Rücken, Stöcke',
+    raceNote: 'Rücken und Schultern tragen im Rennen den Rucksack über 19 Stunden, und wer mit Stöcken steigt, braucht dafür Zugkraft. Belastet die Beine nicht und darf deshalb auch neben einem Lauftag stehen.',
   },
   kraft_c: {
     title: 'Kraft C · Athletik',
     focus: 'Explosivkraft, Rumpf, Einbeiniges',
     hard: false,
     note: 'Athletik und Sprünge liegen an einem Tag mit frischem Nervensystem, nicht im Anschluss an einen harten Reiz.',
+    raceFocus: 'Einbeinig, Sprunggelenk, Rumpf',
+    raceNote: 'Auf technischem Gelände steht man tausendfach kurz auf einem Bein. Sprunggelenk und Hüftstabilität entscheiden dort über Umknicken und über die Ökonomie in den späten Stunden.',
   },
 };
 
@@ -397,21 +414,22 @@ const STRENGTH_TEMPLATES = {
 // als der Longrun. Was es wirklich war, korrigiert deine Angabe beim Abhaken.
 const STRENGTH_NOMINAL_MIN = 60;
 
-export function strengthSession(slot, w, minutesAvailable) {
+export function strengthSession(slot, w, minutesAvailable, forRace = false) {
   const tpl = STRENGTH_TEMPLATES[slot];
   const minutes = Math.max(30, Math.round(Math.min(minutesAvailable, 90) / 5) * 5);
+  const focus = forRace ? tpl.raceFocus : tpl.focus;
 
   return {
     slot,
     kind: 'strength',
     hard: tpl.hard,
     title: tpl.title,
-    subtitle: tpl.focus,
-    focus: tpl.focus,
+    subtitle: focus,
+    focus,
     durationMin: minutes,
     durationCaption: 'Minuten Zeit',
     blocks: [],
-    coachNote: tpl.note,
+    coachNote: forRace ? tpl.raceNote : tpl.note,
     load: Math.round(STRENGTH_NOMINAL_MIN * LOAD_FACTOR[slot]),
   };
 }

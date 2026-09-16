@@ -241,7 +241,9 @@ function buildSession(slot, w, prog, settings, minutesFree, rc) {
     }
     case 'intensiv': {
       if (prog.vert.hills > 0) return vertSession(prog.vert.hills, hill);
-      return intensivSession(w, Math.min(prog.intensivMinutes + 22, minutesFree));
+      // Mit Bergziel fällt Zone 5 weg, in der spezifischen Phase auch Zone 4.
+      const maxZone = rc ? (rc.phase.key === 'spezifisch' ? 3 : 4) : null;
+      return intensivSession(w, Math.min(prog.intensivMinutes + 22, minutesFree), { maxZone });
     }
     case 'easy': {
       if (prog.vert.downhill > 0) {
@@ -250,7 +252,7 @@ function buildSession(slot, w, prog, settings, minutesFree, rc) {
       return easyRun(w, clamp(prog.easyMinutes, 20, minutesFree), settings.easyPace, prog.vert.easy);
     }
     default:
-      return strengthSession(slot, w, minutesFree);
+      return strengthSession(slot, w, minutesFree, Boolean(rc && rc.race.vertM));
   }
 }
 
