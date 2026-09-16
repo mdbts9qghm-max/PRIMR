@@ -25,7 +25,11 @@ export function defaultState() {
       planStart: weekStart(today()),
       startRunMinutes: 130,
       sessionMinutes: 90,
-      gymTravelMinutes: 20,   // einfache Fahrt, zählt bei Krafteinheiten doppelt
+      longSessionMinutes: 360, // lange Einheiten sprengen jede 90-Minuten-Schranke
+      gymTravelMinutes: 20,    // einfache Fahrt, zählt bei Krafteinheiten doppelt
+      hillMeters: 120,         // Höhenmeter je Anstieg in der Umgebung
+      startVertM: 200,         // Höhenmeter, die du heute in einer Woche schaffst
+      race: null,              // Zielrennen, siehe core/race.js
       easyPace: 6.4, // min/km, nur für die km-Schätzung
       theme: 'dark',
     },

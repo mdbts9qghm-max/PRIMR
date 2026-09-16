@@ -5,6 +5,9 @@ import assert from 'node:assert/strict';
 import { shiftDay, DEFAULT_CYCLE, trainingWindow, typeFor } from '../js/core/shift.js';
 import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff } from '../js/core/sleep.js';
 import { planWeek, progression, weekIndex, loadBalance, illnessRamp, MAX_RAMP_DAYS } from '../js/core/plan.js';
+import {
+  phaseFor, volumePlan, vertTarget, phaseVert, features, MAX_WEEKLY_GROWTH,
+} from '../js/core/race.js';
 import { HARD_SLOTS } from '../js/core/library.js';
 import { KIND_LABEL } from '../js/ui/components.js';
 import { readiness, baselines, trainingDirective, BANDS } from '../js/core/readiness.js';
@@ -361,6 +364,137 @@ test('Nach dem Wiedereinstieg kehren harte Einheiten zurück', () => {
   const plan = planWeek('2026-01-05', withOverrides(overrides), SETTINGS);
   const later = plan.days.filter((d) => !d.ramp && d.shift.key !== 'krank');
   assert.ok(later.some((d) => d.session.hard), 'die Woche bleibt komplett weich');
+});
+
+/* ---------- Zielrennen ---------- */
+
+const RACE = {
+  name: 'Zugspitz Ultratrail',
+  date: '2027-06-18',
+  startTime: '23:00',
+  startPlace: 'Ehrwald',
+  distanceKm: 86,
+  vertM: 4295,
+  limitHours: 22,
+};
+const RACE_SETTINGS = { ...SETTINGS, planStart: '2026-09-14', hillMeters: 120, startVertM: 200, longSessionMinutes: 360, race: RACE };
+
+function racePlanFor(weeksBefore) {
+  return planWeek(addDays('2026-09-14', weeksBefore * 7), CONFIG, RACE_SETTINGS);
+}
+
+test('Die Phasen laufen vom Renntag rückwärts', () => {
+  assert.equal(phaseFor(60).key, 'grundlage');
+  assert.equal(phaseFor(30).key, 'aufbau');
+  assert.equal(phaseFor(10).key, 'spezifisch');
+  assert.equal(phaseFor(2).key, 'taper');
+  assert.equal(phaseFor(0).key, 'rennwoche');
+  assert.equal(phaseFor(-2).key, 'regeneration');
+});
+
+test('Der Umfang steigt nie schneller als zehn Prozent je Woche', () => {
+  const vp = volumePlan(RACE, 130, 39);
+  assert.ok(vp.growthPerWeek <= (MAX_WEEKLY_GROWTH - 1) * 100 + 0.01, `${vp.growthPerWeek} %`);
+});
+
+test('Ein zu knapper Zeitraum wird offen ausgewiesen statt überdreht', () => {
+  const eng = volumePlan(RACE, 60, 10);
+  assert.ok(eng.growthPerWeek <= (MAX_WEEKLY_GROWTH - 1) * 100 + 0.01);
+  assert.ok(eng.shortfallPct > 0, 'kein Defizit gemeldet, obwohl die Zeit nicht reicht');
+  assert.equal(eng.reachesPeak, false);
+});
+
+test('Höhenmeter starten bei dem, was du heute kannst', () => {
+  // Der Kalender verlangt in der Aufbauphase über 1000 hm – in der ersten
+  // Trainingswoche darf trotzdem nur der Ausgangswert stehen.
+  assert.equal(vertTarget(RACE, 39, 0, 200), 200);
+  assert.ok(vertTarget(RACE, 39, 0, 200) < phaseVert(RACE, 39));
+});
+
+test('Die geplanten Höhenmeter treffen das Wochenziel', () => {
+  for (let t = 0; t <= 43; t += 1) {
+    const plan = racePlanFor(t);
+    const target = plan.race.vertM;
+    if (!target) continue;
+    const ratio = plan.plannedVert / target;
+    assert.ok(ratio >= 0.75 && ratio <= 1.15, `Woche ${t}: ${plan.plannedVert} von ${target} hm (${Math.round(ratio * 100)} %)`);
+  }
+});
+
+test('Die spezifische Phase enthält alle vier Ultra-Inhalte', () => {
+  const titles = new Set();
+  for (let t = 15; t <= 36; t += 1) {
+    racePlanFor(t).days.forEach((d) => {
+      [d.session, d.extra].filter(Boolean).forEach((x) => titles.add(x.title));
+    });
+  }
+  ['Time on Feet', 'Bergwiederholungen', 'Bergab-Toleranz', 'Zweiter langer Tag', 'Nacht-Longrun']
+    .forEach((t) => assert.ok(titles.has(t), `"${t}" kommt nie vor`));
+});
+
+test('Der zweite lange Tag steht immer direkt nach dem Longrun', () => {
+  for (let t = 0; t <= 43; t += 1) {
+    const days = racePlanFor(t).days;
+    days.forEach((d, i) => {
+      if (d.slot !== 'long_b') return;
+      assert.ok(i > 0, `Woche ${t}: Doppeltag am Wochenanfang`);
+      assert.equal(days[i - 1].slot, 'long', `Woche ${t}: Doppeltag ohne Longrun davor`);
+    });
+  }
+});
+
+test('Bergab-Einheiten beginnen nicht in der Grundlage', () => {
+  const f = features(60);
+  assert.equal(f.downhill, false);
+  assert.equal(f.timeOnFeet, false);
+  assert.equal(features(10).downhill, true);
+});
+
+test('Am Renntag steht das Rennen und sonst nichts', () => {
+  const week = planWeek('2027-06-14', CONFIG, RACE_SETTINGS);
+  const day = week.days.find((d) => d.date === '2027-06-18');
+  assert.equal(day.session.kind, 'race');
+  assert.equal(day.extra, null);
+  assert.equal(week.days.filter((d) => d.session.hard && d.session.kind !== 'race').length, 0,
+    'in der Rennwoche steht eine harte Einheit');
+});
+
+test('Nach dem Rennen wird in derselben Woche nicht mehr trainiert', () => {
+  const week = planWeek('2027-06-14', CONFIG, RACE_SETTINGS);
+  week.days.filter((d) => d.date > '2027-06-18').forEach((d) => {
+    assert.equal(d.session.kind, 'rest', `${d.date}: ${d.session.title}`);
+  });
+});
+
+test('In der Regeneration steht nichts Hartes', () => {
+  [44, 45, 46].forEach((t) => {
+    racePlanFor(t).days.forEach((d) => {
+      [d.session, d.extra].filter(Boolean).forEach((x) => {
+        assert.equal(x.hard, false, `Woche ${t}: ${x.title}`);
+      });
+    });
+  });
+});
+
+test('Der Taper nimmt den Umfang deutlich zurück', () => {
+  const spezifisch = racePlanFor(33).progression.weeklyRunMinutes;
+  const taper = racePlanFor(38).progression.weeklyRunMinutes;
+  assert.ok(taper < spezifisch * 0.7, `Taper ${taper} min gegen ${spezifisch} min`);
+});
+
+test('Ohne Ziel bleibt der Plan unverändert endlos', () => {
+  const ohne = planWeek('2026-09-14', CONFIG, SETTINGS);
+  assert.equal(ohne.race, null);
+  assert.equal(ohne.plannedVert, 0);
+  assert.equal(ohne.runs, 3);
+});
+
+test('Der Rennplan rechnet Flachäquivalent und Verpflegung aus', () => {
+  const p = racePlanFor(0).race.plan;
+  assert.equal(p.flatEquivalent, 129);      // 86 km + 4295 hm / 100
+  assert.ok(p.targetHours < RACE.limitHours, 'kein Puffer zum Limit');
+  assert.equal(p.carbsPerHour[0], 60);
+  assert.ok(p.carbsTotal[0] > 1000);
 });
 
 /* ---------- Progression ---------- */

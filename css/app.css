@@ -557,3 +557,21 @@ textarea { min-height: 80px; resize: vertical; }
 .update-bar button { flex: none; }
 
 .badge--krank { background: rgba(230,103,103,0.15); color: #f0918f; border-color: rgba(230,103,103,0.4); }
+
+/* ---------- Phasenleiste bis zum Rennen ---------- */
+
+.phasebar { display: flex; gap: 3px; align-items: stretch; }
+.phasebar__seg {
+  height: 10px;
+  border-radius: 3px;
+  background: var(--surface-3);
+  min-width: 6px;
+}
+.phasebar__seg--done { background: color-mix(in srgb, var(--accent) 45%, var(--surface-3)); }
+.phasebar__seg--now { background: var(--accent); }
+.phasebar__seg--race { background: var(--warn); min-width: 10px; }
+.phasebar__labels { display: flex; justify-content: space-between; margin-top: 7px; }
+
+.goal-figure { display: flex; align-items: baseline; gap: 8px; }
+.goal-figure__value { font-size: 34px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.goal-figure__unit { font-size: 13px; color: var(--text-muted); }

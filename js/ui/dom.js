@@ -29,10 +29,12 @@ export function $$(sel, root = document) {
 }
 
 export function on(root, event, selector, handler) {
+  // "invalid" steigt nicht auf; nur in der Erfassungsphase ist es zu sehen.
+  const capture = event === 'invalid';
   root.addEventListener(event, (e) => {
-    const target = e.target.closest(selector);
+    const target = e.target.closest && e.target.closest(selector);
     if (target && root.contains(target)) handler(e, target);
-  });
+  }, capture);
 }
 
 let toastTimer = null;

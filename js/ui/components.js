@@ -222,3 +222,36 @@ export function blockPosition(day, positions) {
     }).join('')}
   </div>`;
 }
+
+
+/**
+ * Die Phasen bis zum Rennen als Leiste. Breite je Phase entspricht ihrer
+ * Dauer, damit sichtbar wird, wie viel Zeit worin steckt.
+ */
+export function phaseBar(phases, weeksOut, startWeeksOut) {
+  const segs = phases
+    .map((p, i) => {
+      const from = Math.min(startWeeksOut, i === 0 ? startWeeksOut : phases[i - 1].from - 1);
+      const to = p.from;
+      return { ...p, weeks: Math.max(0, from - to + 1), from, to };
+    })
+    .filter((p) => p.weeks > 0 && p.to <= startWeeksOut);
+
+  const total = segs.reduce((a, p) => a + p.weeks, 0) || 1;
+  const current = segs.find((p) => weeksOut >= p.to && weeksOut <= p.from);
+
+  return `<div>
+    <div class="phasebar" role="img" aria-label="${esc(`Phase ${current ? current.label : ''}, noch ${weeksOut} Wochen bis zum Rennen`)}">
+      ${segs.map((p) => {
+        const state = weeksOut < p.to ? 'done' : p === current ? 'now' : '';
+        const cls = p.key === 'rennwoche' ? 'phasebar__seg--race' : state ? `phasebar__seg--${state}` : '';
+        return `<span class="phasebar__seg ${cls}" style="flex:${p.weeks}"
+                  title="${esc(`${p.label}: ${p.weeks} Wochen`)}"></span>`;
+      }).join('')}
+    </div>
+    <div class="phasebar__labels">
+      <span class="tiny" style="color:var(--accent);font-weight:600">${esc(current ? current.label : '')}</span>
+      <span class="tiny muted">Rennen</span>
+    </div>
+  </div>`;
+}

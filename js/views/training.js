@@ -3,8 +3,9 @@
 
 import { esc, icon } from '../ui/dom.js';
 import { barChart, stackedBar, ZONE_COLORS } from '../ui/charts.js';
-import { sessionCard, dayRow, weekStrip, weekStripLegend } from '../ui/components.js';
-import { addDays, weekStart, shortDate, weekdayShort, round, durationLabel } from '../core/util.js';
+import { sessionCard, dayRow, weekStrip, weekStripLegend, phaseBar } from '../ui/components.js';
+import { PHASES, countdown, weeksUntil } from '../core/race.js';
+import { addDays, weekStart, shortDate, weekdayShort, round, durationLabel, longDate } from '../core/util.js';
 import { weekPlan } from '../core/context.js';
 import { progression } from '../core/plan.js';
 import { ZONES } from '../core/zones.js';
@@ -56,14 +57,80 @@ export function render(ctx) {
       : ctx.load.ratio > 1.25 ? 'tone-warn'
         : ctx.load.ratio < 0.8 ? 'tone-warn' : 'tone-good';
 
+  const rc = plan.race;
+  const race = ctx.state.settings.race;
+  const cd = race ? countdown(race, ctx.date) : null;
+  const startWeeksOut = race ? weeksUntil(race.date, ctx.state.settings.planStart) : 0;
+
   return `
   <div class="view">
+
+    ${race ? `
+    <div class="card card--accent">
+      <div class="row row--between" style="align-items:flex-start">
+        <div class="grow" style="min-width:0">
+          <div class="section-label">Ziel</div>
+          <h2 style="font-size:20px;margin-top:5px">${esc(race.name)}</h2>
+          <div class="small secondary" style="margin-top:3px">${esc(longDate(race.date))} · Start ${esc(race.startTime)}</div>
+        </div>
+        <div style="text-align:right;flex:none">
+          <div class="goal-figure" style="justify-content:flex-end">
+            <span class="goal-figure__value">${cd.past ? '–' : Math.max(0, rc ? rc.weeksOut : cd.weeks)}</span>
+          </div>
+          <div class="tiny muted">${cd.past ? 'gelaufen'
+            : (rc ? rc.weeksOut : cd.weeks) === 1 ? 'Woche vorher' : 'Wochen vorher'}</div>
+          ${offset !== 0 && !cd.past ? `<div class="tiny muted" style="margin-top:2px">heute: ${esc(cd.text)}</div>` : ''}
+        </div>
+      </div>
+
+      <div class="row wrap" style="gap:6px;margin-top:12px">
+        <span class="chip">${race.distanceKm} km</span>
+        <span class="chip">${race.vertM} hm+</span>
+        <span class="chip">Limit ${race.limitHours} h</span>
+      </div>
+
+      ${rc ? `<div style="margin-top:16px">${phaseBar(PHASES, rc.weeksOut, startWeeksOut)}</div>
+      <div class="note" style="margin-top:14px">${esc(rc.phase.detail)}</div>
+
+      <div class="metric-grid" style="margin-top:12px">
+        <div class="metric">
+          <div class="metric__label">Laufen</div>
+          <div class="metric__value">${prog.weeklyRunMinutes}<span class="metric__unit"> min</span></div>
+          <div class="metric__delta muted">${durationLabel(prog.weeklyRunMinutes)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Höhenmeter</div>
+          <div class="metric__value">${plan.plannedVert}<span class="metric__unit"> hm</span></div>
+          <div class="metric__delta muted">Ziel ${rc.vertM}</div>
+        </div>
+        <div class="metric">
+          <div class="metric__label">Phase</div>
+          <div class="metric__value" style="font-size:16px">${esc(rc.phase.label)}</div>
+        </div>
+      </div>
+
+      <div class="row wrap" style="gap:6px;margin-top:12px">
+        ${rc.backToBackWeek ? '<span class="chip chip--on">Doppeltag diese Woche</span>' : ''}
+        ${rc.downhillWeek ? '<span class="chip chip--on">Bergab-Einheit</span>' : ''}
+        ${rc.nightWeek ? '<span class="chip chip--on">Nachtlauf</span>' : ''}
+      </div>` : ''}
+
+      <button class="btn btn--block" style="margin-top:14px" data-action="open-raceplan">Rennplan ansehen</button>
+    </div>` : `
+    <div class="card">
+      <div class="section-label">Kein Ziel hinterlegt</div>
+      <p class="small secondary" style="margin-top:8px">
+        Ohne Zielrennen läuft der Plan endlos in Vierwochenblöcken weiter. Mit Ziel rechnet er
+        vom Renntag rückwärts und wird zum Termin hin spezifischer.
+      </p>
+      <button class="btn btn--primary btn--block" style="margin-top:12px" data-action="open-settings">Ziel eintragen</button>
+    </div>`}
 
     <div class="card">
       <div class="row row--between">
         <button class="icon-btn" data-action="week-shift" data-delta="-1" aria-label="Vorherige Woche">${icon('back')}</button>
         <div style="text-align:center">
-          <div class="section-label">Woche ${plan.weekIndex + 1} · ${esc(prog.phase)}</div>
+          <div class="section-label">Woche ${plan.weekIndex + 1} · ${esc(prog.blockPhase || prog.phase)}</div>
           <div class="small secondary" style="margin-top:3px">${esc(shortDate(monday))} – ${esc(shortDate(addDays(monday, 6)))}</div>
         </div>
         <button class="icon-btn" data-action="week-shift" data-delta="1" aria-label="Nächste Woche"
@@ -140,8 +207,8 @@ export function render(ctx) {
           <div class="metric__value">${prog.longMinutes}<span class="metric__unit"> min</span></div>
         </div>
         <div class="metric">
-          <div class="metric__label">Phase</div>
-          <div class="metric__value" style="font-size:17px">${esc(prog.phase)}</div>
+          <div class="metric__label">Blockwoche</div>
+          <div class="metric__value" style="font-size:16px">${esc(prog.blockPhase || prog.phase)}</div>
         </div>
       </div>
       <div class="note" style="margin-top:12px">

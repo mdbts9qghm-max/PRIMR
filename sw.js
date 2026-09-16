@@ -6,7 +6,7 @@
 // wird und das Netz nie gefragt wird. Der Cache ist hier nur die Rückfallebene
 // für den Fall, dass gerade keine Verbindung besteht.
 
-const VERSION = '2026.09.16';
+const VERSION = '2026.09.17';
 const CACHE = `primr-${VERSION}`;
 const NETWORK_TIMEOUT_MS = 4000;
 
@@ -26,6 +26,7 @@ const ASSETS = [
   './js/core/readiness.js',
   './js/core/library.js',
   './js/core/plan.js',
+  './js/core/race.js',
   './js/core/tasks.js',
   './js/core/store.js',
   './js/core/context.js',

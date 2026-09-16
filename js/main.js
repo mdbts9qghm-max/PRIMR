@@ -8,6 +8,7 @@ import { today as todayIso, longDate, shortDate, uid, weekStart, addDays, daysBe
 import { createTask } from './core/tasks.js';
 import { shiftDay, DEFAULT_CYCLE } from './core/shift.js';
 import { VERSION } from './version.js';
+import { DEFAULT_RACE } from './core/race.js';
 
 import * as todayView from './views/today.js';
 import * as trainingView from './views/training.js';
@@ -64,6 +65,7 @@ function renderSheet(c) {
   else if (type === 'settings') body = sheets.settingsSheet(c);
   else if (type === 'shift') body = sheets.shiftSheet(c);
   else if (type === 'day') body = sheets.daySheet(c, payload);
+  else if (type === 'raceplan') body = sheets.racePlanSheet(c);
   else if (type === 'complete') body = completeSheet(c, payload);
   else if (type === 'welcome') body = welcomeSheet(c);
   return `<div class="sheet" role="dialog" aria-modal="true">${body}</div>`;
@@ -219,6 +221,10 @@ function saveSettings(form) {
     s.settings.easyPace = num(form, 'easyPace') || s.settings.easyPace;
     const travel = num(form, 'gymTravelMinutes');
     if (travel != null) s.settings.gymTravelMinutes = travel;
+    ['hillMeters', 'startVertM', 'longSessionMinutes'].forEach((key) => {
+      const v = num(form, key);
+      if (v != null) s.settings[key] = v;
+    });
     const weight = num(form, 'weightKg');
     if (weight != null) s.profile.weightKg = weight;
   });
@@ -268,6 +274,31 @@ function pickSession(c, slot) {
   return c.session || (c.entry && c.entry.session) || null;
 }
 
+/** Zielrennen speichern – ohne Datum gibt es kein Ziel. */
+function saveRace(form) {
+  const date = form.elements.raceDate.value;
+  const name = form.elements.raceName.value.trim();
+  if (!date) { toast('Ohne Renntag kein Ziel'); return; }
+  if (date <= todayIso()) { toast('Der Renntag muss in der Zukunft liegen'); return; }
+
+  store.update((s) => {
+    s.settings.race = {
+      ...DEFAULT_RACE,
+      ...(s.settings.race || {}),
+      name: name || 'Zielrennen',
+      date,
+      startTime: form.elements.raceStart.value || '08:00',
+      distanceKm: num(form, 'raceDistance') || DEFAULT_RACE.distanceKm,
+      vertM: num(form, 'raceVert') || 0,
+      limitHours: num(form, 'raceLimit') || DEFAULT_RACE.limitHours,
+    };
+  });
+  ctxBuilder.invalidate();
+  app.sheet = null;
+  toast('Ziel gespeichert');
+  render();
+}
+
 /**
  * Urlaub, Krankheit oder ein Zusatzdienst über einen Zeitraum. Der Zyklus
  * bleibt unangetastet, überschrieben werden nur die einzelnen Tage.
@@ -313,6 +344,21 @@ const actions = {
   'open-checkin': () => { app.sheet = { type: 'checkin' }; render(); },
   'open-settings': () => { app.sheet = { type: 'settings' }; render(); },
   'open-shift-editor': () => { app.sheet = { type: 'shift' }; render(); },
+  'open-raceplan': () => { app.sheet = { type: 'raceplan' }; render(); },
+
+  'prefill-race': () => {
+    store.update((s) => { s.settings.race = { ...DEFAULT_RACE }; });
+    ctxBuilder.invalidate();
+    toast('Rennen eingetragen – Werte prüfen und speichern');
+    render();
+  },
+
+  'clear-race': () => {
+    store.update((s) => { s.settings.race = null; });
+    ctxBuilder.invalidate();
+    toast('Ziel entfernt');
+    render();
+  },
   'new-task': () => { app.sheet = { type: 'task', payload: null }; render(); },
   'new-marker': () => { app.sheet = { type: 'marker' }; render(); },
   'close-sheet': () => { app.sheet = null; app.draft = {}; render(); },
@@ -562,6 +608,17 @@ function boot() {
     fn(e, el);
   });
 
+  // Ein Formular, das der Browser wegen einer Feldregel ablehnt, sendet gar
+  // kein submit-Ereignis. Ohne diesen Zweig passiert beim Tippen nichts und
+  // niemand erfährt, warum.
+  on(document, 'invalid', 'input, select, textarea', (e, field) => {
+    e.preventDefault();
+    const label = field.closest('.field');
+    const name = label ? (label.querySelector('.field__label') || {}).textContent : field.name;
+    toast(`${(name || 'Ein Feld').trim()}: ${field.validationMessage}`);
+    field.focus();
+  });
+
   on(document, 'submit', 'form', (e, form) => {
     e.preventDefault();
     if (form.id === 'checkin-form') saveCheckin(form);
@@ -569,6 +626,7 @@ function boot() {
     else if (form.id === 'marker-form') saveMarker(form);
     else if (form.id === 'settings-form') saveSettings(form);
     else if (form.id === 'absence-form') saveAbsence(form);
+    else if (form.id === 'race-form') saveRace(form);
     else if (form.id === 'complete-form') {
       const btn = form.querySelector('[data-action="save-complete"]');
       saveComplete(form, btn.dataset.date, btn.dataset.slot);

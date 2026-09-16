@@ -3,12 +3,13 @@
 
 import { esc, icon } from '../ui/dom.js';
 import { shiftBadge, sessionCard, shiftColor } from '../ui/components.js';
-import { longDate, shortDate, weekdayShort, addDays, daysBetween } from '../core/util.js';
+import { longDate, shortDate, weekdayShort, addDays, daysBetween, durationLabel } from '../core/util.js';
 import { CATEGORIES } from '../core/tasks.js';
 import { MARKERS } from './stats.js';
 import { BLOCK_POSITIONS, DAY_TYPES, ABSENCE, typeFor } from '../core/shift.js';
 import { sleepPlan } from '../core/sleep.js';
 import { VERSION } from '../version.js';
+import { DEFAULT_RACE, racePlan, countdown, phaseFor, weeksUntil, volumePlan } from '../core/race.js';
 
 function head(title, subtitle) {
   return `<div class="row row--between" style="align-items:flex-start">
@@ -398,11 +399,53 @@ export function settingsSheet(ctx) {
       </div>
 
       <div class="card stack">
+        <div class="section-label">Gelände</div>
+        ${numField('hillMeters', 'Höhenmeter je Anstieg in deiner Umgebung', 'Der längste Anstieg, den du ohne Anfahrt erreichst. Daraus baut die App Bergwiederholungen.', s.hillMeters, 'min="20" max="600" step="10"')}
+        ${numField('startVertM', 'Höhenmeter, die du heute in einer Woche schaffst', 'Ausgangspunkt der Steigerung. Lieber zu niedrig ansetzen.', s.startVertM, 'min="0" max="3000" step="50"')}
+        ${numField('longSessionMinutes', 'Maximale Dauer der langen Einheit (min)', 'Nur für Longrun und zweiten langen Tag. Alles andere bleibt bei der Obergrenze oben.', s.longSessionMinutes, 'min="60" max="600" step="15"')}
+      </div>
+
+      <div class="card stack">
         <div class="section-label">Körper</div>
         ${numField('weightKg', 'Körpergewicht (kg)', 'Grundlage für das Proteinziel in den Gewohnheiten.', ctx.state.profile.weightKg, 'min="35" max="200" step="0.5"')}
       </div>
 
       <button class="btn btn--primary btn--block" type="submit" data-action="save-settings">Speichern</button>
+    </form>
+
+    <form id="race-form" class="stack">
+      <div class="card stack">
+        <div class="row row--between">
+          <span class="section-label">Zielrennen</span>
+          ${s.race ? `<button type="button" class="btn btn--sm btn--ghost" data-action="clear-race">Entfernen</button>` : ''}
+        </div>
+        <p class="field__hint">Mit Ziel rechnet der Plan vom Renntag rückwärts: Grundlage, Aufbau,
+        spezifische Phase, Taper. Ohne Ziel läuft er endlos in Vierwochenblöcken weiter.</p>
+
+        ${!s.race ? `<button type="button" class="btn btn--block" data-action="prefill-race">
+          Zugspitz Ultratrait 100K eintragen
+        </button>` : ''}
+
+        <div class="field">
+          <label class="field__label" for="f-raceName">Name</label>
+          <input id="f-raceName" name="raceName" type="text" value="${esc((s.race && s.race.name) || '')}" placeholder="z. B. Zugspitz Ultratrail">
+        </div>
+        <div class="row" style="gap:10px">
+          <div class="field grow">
+            <label class="field__label" for="f-raceDate">Renntag</label>
+            <input id="f-raceDate" name="raceDate" type="date" value="${esc((s.race && s.race.date) || '')}">
+          </div>
+          <div class="field grow">
+            <label class="field__label" for="f-raceStart">Startzeit</label>
+            <input id="f-raceStart" name="raceStart" type="time" value="${esc((s.race && s.race.startTime) || '08:00')}">
+          </div>
+        </div>
+        ${numField('raceDistance', 'Distanz (km)', null, s.race && s.race.distanceKm, 'min="5" max="400" step="1"')}
+        ${numField('raceVert', 'Höhenmeter positiv', null, s.race && s.race.vertM, 'min="0" max="20000" step="1"')}
+        ${numField('raceLimit', 'Zeitlimit (h)', 'Die App peilt 88 % davon an – mit Reserve statt auf Kante.', s.race && s.race.limitHours, 'min="1" max="72" step="0.5"')}
+
+        <button class="btn btn--primary btn--block" type="submit" data-action="save-race">Ziel speichern</button>
+      </div>
     </form>
 
     <div class="card stack">
@@ -427,6 +470,96 @@ export function settingsSheet(ctx) {
         Es ersetzt keine ärztliche Beratung – bei anhaltend erhöhtem Ruhepuls, Schmerzen oder
         Infektzeichen gehört das abgeklärt und nicht wegtrainiert.
       </p>
+    </div>
+  </div>`;
+}
+
+/* ---------------- Rennplan ---------------- */
+
+export function racePlanSheet(ctx) {
+  const race = ctx.state.settings.race;
+  if (!race) return `<div class="sheet__inner">${head('Rennplan')}<div class="empty">Kein Ziel hinterlegt.</div></div>`;
+
+  const plan = racePlan(race);
+  const cd = countdown(race, ctx.date);
+  const out = weeksUntil(race.date, ctx.date);
+  const startOut = weeksUntil(race.date, ctx.state.settings.planStart);
+  const vp = volumePlan(race, ctx.state.settings.startRunMinutes || 130, startOut);
+
+  return `<div class="sheet__inner">
+    ${head(race.name, `${longDate(race.date)} · ${cd.text}`)}
+
+    <div class="card">
+      <div class="metric-grid">
+        <div class="metric"><div class="metric__label">Distanz</div><div class="metric__value">${race.distanceKm}<span class="metric__unit"> km</span></div></div>
+        <div class="metric"><div class="metric__label">Höhenmeter</div><div class="metric__value">${race.vertM}<span class="metric__unit"> hm</span></div></div>
+        <div class="metric"><div class="metric__label">Limit</div><div class="metric__value">${race.limitHours}<span class="metric__unit"> h</span></div></div>
+      </div>
+      <div class="note" style="margin-top:12px">
+        Flachäquivalent rund <strong>${plan.flatEquivalent} km</strong> – je 100 Höhenmeter zählt ein
+        Kilometer extra. Das Limit entspricht ${plan.limitPace} min je Äquivalentkilometer,
+        angepeilt sind <strong>${plan.targetHours} h</strong> bei ${plan.targetPace} min.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h3 class="card__title">Zeitplan</h3><span class="card__meta">Start ${esc(race.startTime)}</span></div>
+      <div class="stack small secondary">
+        <p><strong>Die ersten Stunden im Dunkeln.</strong> Bei einem Start um ${esc(race.startTime)} läufst du
+        rund ${plan.darkHours} Stunden mit Stirnlampe. Ersatzbatterien gehören in den Rucksack, nicht ins Auto.
+        Im Dunkeln fühlt sich jedes Tempo leichter an, als es ist – halte dich bewusst zurück.</p>
+        <p><strong>Erste 20 Kilometer.</strong> Langsamer als das Zielpace. Wer hier Zeit gutmacht,
+        zahlt sie ab Kilometer 60 doppelt zurück.</p>
+        <p><strong>Die Abstiege.</strong> ${plan.descentM} Höhenmeter gehen wieder herunter. Kurze Schritte,
+        Fuß unter dem Körper, nicht mit gestrecktem Bein bremsen.</p>
+        <p><strong>Power-Hiking.</strong> Jeden Anstieg über 50 hm gehen, von Anfang an. Bei 4295 hm ist
+        Gehen die Renngeschwindigkeit und keine Schwäche.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h3 class="card__title">Verpflegung</h3><span class="card__meta">je Stunde</span></div>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric__label">Kohlenhydrate</div><div class="metric__value" style="font-size:18px">${plan.carbsPerHour[0]}–${plan.carbsPerHour[1]}<span class="metric__unit"> g</span></div></div>
+        <div class="metric"><div class="metric__label">Flüssigkeit</div><div class="metric__value" style="font-size:18px">${plan.fluidPerHour[0]}–${plan.fluidPerHour[1]}<span class="metric__unit"> ml</span></div></div>
+        <div class="metric"><div class="metric__label">Natrium</div><div class="metric__value" style="font-size:18px">${plan.sodiumPerHour[0]}–${plan.sodiumPerHour[1]}<span class="metric__unit"> mg</span></div></div>
+      </div>
+      <div class="note" style="margin-top:12px">
+        Über ${plan.targetHours} Stunden sind das <strong>${plan.carbsTotal[0]}–${plan.carbsTotal[1]} g Kohlenhydrate</strong>.
+        Stell dir einen Wecker alle 20 Minuten – ab Stunde zehn vergisst man das Essen zuverlässig.
+      </div>
+      <p class="small secondary" style="margin-top:12px">
+        Der Magen wird trainiert wie die Beine. Ab der Aufbauphase steht in jeder langen Einheit
+        genau die Verpflegung auf dem Plan, die du im Rennen nehmen willst. Übelkeit ab Stunde drei
+        kommt fast immer von zu wenig Flüssigkeit oder zu viel Zucker auf einmal.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h3 class="card__title">Der Weg dorthin</h3><span class="card__meta">${startOut} Wochen</span></div>
+      <div class="stack small secondary">
+        <p>Die stärkste Trainingswoche liegt bei rund <strong>${durationLabel(vp.peakMinutes)}</strong> Laufen –
+        etwa die Hälfte der erwarteten Rennzeit. Dafür wächst der Umfang um
+        <strong>${vp.growthPerWeek} % je Woche</strong>.</p>
+        ${vp.shortfallPct > 0 ? `<p class="tone-warn">Bis zum Renntag reicht die Zeit nur für rund
+        ${durationLabel(vp.reachablePeak)} – das sind ${vp.shortfallPct} % unter dem, was für diese Distanz
+        empfehlenswert wäre. Mehr als zehn Prozent Zuwachs pro Woche wäre der sichere Weg in eine
+        Verletzung, deshalb steigert die App nicht schneller.</p>`
+          : '<p>Der Zeitraum reicht aus, um diesen Umfang ohne überhöhte Steigerungen zu erreichen.</p>'}
+        <p>Die Höhenmeter folgen derselben Logik: In der stärksten Woche rund
+        <strong>${Math.round(race.vertM * 0.55)} hm</strong>, also gut die Hälfte der Renn-Höhenmeter.
+        Mehr braucht es nicht, und mehr verträgt über Monate niemand.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__head"><h3 class="card__title">Aktuelle Phase</h3></div>
+      <div class="row wrap" style="gap:8px">
+        <span class="badge badge--frei">${esc(phaseFor(out).label)}</span>
+        <span class="chip">${cd.text}</span>
+      </div>
+      <p class="small secondary" style="margin-top:10px">${esc(phaseFor(out).focus)}</p>
+      <p class="small secondary" style="margin-top:8px">${esc(phaseFor(out).detail)}</p>
     </div>
   </div>`;
 }

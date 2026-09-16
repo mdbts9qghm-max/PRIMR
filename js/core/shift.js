@@ -182,18 +182,21 @@ export function trainingWindow(dayKey) {
     case 'tag':
       return { from: '19:45', to: '21:00', minutesFree: 30, quality: 'nur Mobility nach dem Dienst' };
     case 'nacht':
-      return { from: '09:00', to: '12:30', minutesFree: 150, quality: 'ausgeschlafener Vormittag, vier Stunden vor dem Vorschlaf' };
+      return { from: '09:00', to: '13:00', minutesFree: 180, quality: 'ausgeschlafener Vormittag, zwei Stunden vor dem Vorschlaf' };
     case 'nacht_folge':
       return { from: '14:45', to: '17:00', minutesFree: 60, quality: 'kurzes Fenster nach dem Morgenschlaf' };
     case 'schlaftag':
-      return { from: '15:30', to: '19:00', minutesFree: 150, quality: 'Nachmittag nach dem Schlaf, Bett erst um 00:00' };
+      return { from: '15:30', to: '19:00', minutesFree: 210, quality: 'Nachmittag nach dem Schlaf, Bett erst um 00:00' };
     case 'frei_vor_tag':
-      return { from: '09:30', to: '13:00', minutesFree: 150, quality: 'Vormittag, der Abend bleibt ruhig' };
+      return { from: '09:00', to: '14:00', minutesFree: 300, quality: 'Vormittag und Mittag, der Abend bleibt ruhig' };
     case 'krank':
       // minutesFree 0: hier passt bewusst keine Einheit hinein.
       return { from: '11:00', to: '12:00', minutesFree: 0, quality: 'kein Training – höchstens ein kurzer Spaziergang' };
     default:
-      return { from: '09:30', to: '13:00', minutesFree: 180, quality: 'dienstfrei, der ganze Tag steht offen' };
+      // Ein freier Tag gibt realistisch acht Stunden her. Wie viel davon
+      // genutzt wird, entscheidet nicht das Fenster, sondern die Obergrenze
+      // je Einheitenart.
+      return { from: '08:30', to: '16:30', minutesFree: 480, quality: 'dienstfrei, der ganze Tag steht offen' };
   }
 }
 

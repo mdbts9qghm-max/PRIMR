@@ -91,6 +91,51 @@ frei – mindestens zwei, höchstens sieben – und fährt den Umfang in dieser 
 gestaffelt von 45 % wieder hoch. Der Heute-Tab zeigt, an welchem Tag der Phase
 du stehst und ab wann wieder normal geplant wird.
 
+## Zielrennen
+
+Ohne Ziel läuft der Plan endlos in Vierwochenblöcken weiter. Mit einem Ziel
+(*Einstellungen → Zielrennen*) rechnet er vom Renntag rückwärts:
+
+| Phase | Wochen vorher | Was passiert |
+|---|---|---|
+| Grundlage | ab 53 | Wochenumfang aufbauen, Höhenmeter langsam dazunehmen |
+| Aufbau | 25–52 | Höhenmeter systematisch steigern, lange Einheiten in Stunden statt Kilometern, Power-Hiking üben |
+| Spezifisch | 4–24 | Rennsimulation: Bergab-Toleranz, Nachtläufe, Verpflegung, Doppeltage |
+| Taper | 1–3 | Umfang auf 40–75 %, Spannung halten |
+| Rennwoche | 0 | Nur lockeres Laufen, dann das Rennen |
+| Regeneration | danach | Vier Wochen ohne harte Reize, alles kurz |
+
+### Was der Kalender verlangt und was der Körper trägt
+
+Die Phasen setzen voraus, dass man mit der passenden Grundlage in ihnen
+ankommt. Wer neun Monate vor einem 86-km-Berglauf bei 20 km pro Woche steht,
+tut das nicht. Deshalb ist jede Wochenvorgabe **das Kleinere aus Phasenziel und
+eigener Steigerung** – die Steigerung beginnt bei dem, was heute geht, und wächst
+nie um mehr als zehn Prozent pro Woche.
+
+Reicht die Zeit für den nötigen Umfang nicht aus, sagt die App das offen
+(*Rennplan → Der Weg dorthin*) statt die Steigerung zu überdrehen.
+
+### Höhenmeter ohne Berge vor der Tür
+
+Als stärkste Woche dient rund 55 % der Renn-Höhenmeter. Sie entstehen aus
+Wiederholungen am längsten erreichbaren Anstieg (*Einstellungen → Gelände*).
+Das Wochenbudget wird an einer Stelle verteilt: Zuerst wird abgezogen, was
+feststeht – eine Bergab-Einheit, wenn sie ansteht –, dann bekommt die
+Bergeinheit ihren Anteil, sofern drei Wiederholungen zusammenkommen, und der
+Rest verteilt sich auf die langen und lockeren Läufe.
+
+### Die vier ultraspezifischen Inhalte
+
+- **Höhenmeter** als eigene Einheit, sobald das Wochenziel drei Wiederholungen hergibt
+- **Time on Feet** statt Kilometer, sobald die lange Einheit zwei Stunden überschreitet
+- **Bergab-Belastungstoleranz** ab der Aufbauphase, alle zwei Wochen, mit langsam wachsender Wiederholungszahl. Die exzentrische Belastung im Quadrizeps ist der häufigste Grund für einen Abbruch bei dieser Distanz und der einzige Reiz, den man nicht kurzfristig nachholen kann.
+- **Verpflegungsstrategie**, geübt in jeder langen Einheit ab der Aufbauphase, mit den Mengen des Rennplans
+
+Dazu zwei Inhalte, die sich aus diesem Rennen ergeben: **Doppeltage** (zwei lange
+Tage hintereinander erzeugen den Zustand der Stunden 14 bis 20, ohne 14 Stunden
+am Stück zu laufen) und **Nachtläufe**, weil der Start um 23:00 Uhr liegt.
+
 ## Wie der Trainingsplan entsteht
 
 Ziel sind drei Läufe (einmal intensiv, einmal Longrun, einmal locker) und drei
