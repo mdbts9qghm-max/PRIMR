@@ -8,7 +8,7 @@ import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff, lastMealCutoff
 import { baselines, readiness, trainingDirective, dayAdvice } from './readiness.js';
 import { planWeek, applyDirective, loadBalance } from './plan.js';
 import { tasksFor, overdue } from './tasks.js';
-import { today as todayIso, addDays } from './util.js';
+import { today as todayIso, addDays, weekStart } from './util.js';
 
 const planCache = new Map();
 
@@ -18,9 +18,32 @@ export function invalidate() {
 
 export function weekPlan(isoDate) {
   const s = store.get();
-  const key = `${isoDate}|${s.shift.cycle.join('')}|${s.shift.anchorDate}|${s.shift.anchorIndex}|${JSON.stringify(s.settings)}`;
-  if (!planCache.has(key)) planCache.set(key, planWeek(isoDate, s.shift, s.settings));
+  // Auf den Wochenanfang schlüsseln, nicht auf das Datum: Sieben Tage
+  // derselben Woche ergeben denselben Plan, und dessen Berechnung durchsucht
+  // alle Verteilungen der Einheiten. Sieben Mal wäre siebenmal zu viel.
+  const monday = weekStart(isoDate);
+  const key = `${monday}|${s.shift.cycle.join('')}|${s.shift.anchorDate}|${s.shift.anchorIndex}|${JSON.stringify(s.shift.overrides)}|${JSON.stringify(s.settings)}`;
+  if (!planCache.has(key)) planCache.set(key, planWeek(monday, s.shift, s.settings));
   return planCache.get(key);
+}
+
+/**
+ * Rollendes Fenster: n Tage ab startIso, unabhängig von Kalenderwochen.
+ *
+ * Geplant wird weiter je Kalenderwoche – der Coach braucht die Woche als
+ * Einheit, sonst sprängen die Einheiten bei jeder Neuberechnung. Nur die
+ * Anzeige rollt, und die holt sich jeden Tag aus dem Plan seiner Woche.
+ */
+export function rollingDays(startIso, n = 7) {
+  return Array.from({ length: n }, (_, i) => {
+    const date = addDays(startIso, i);
+    return weekPlan(date).days.find((d) => d.date === date);
+  }).filter(Boolean);
+}
+
+/** Der Plantag eines beliebigen Datums – für Detailansichten. */
+export function entryFor(isoDate) {
+  return weekPlan(isoDate).days.find((d) => d.date === isoDate) || null;
 }
 
 export function shiftKeyFor(isoDate) {

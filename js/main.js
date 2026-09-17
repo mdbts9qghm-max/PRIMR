@@ -394,10 +394,9 @@ const actions = {
   },
 
   'open-day': (e, el) => {
-    const c = ctx();
-    const monday = addDays(weekStart(c.date), (c.state.ui.weekOffset || 0) * 7);
-    const plan = ctxBuilder.weekPlan(monday);
-    const entry = plan.days.find((d) => d.date === el.dataset.date);
+    // Über das Datum suchen, nicht über die angezeigte Woche: Das rollende
+    // Fenster reicht über zwei Kalenderwochen.
+    const entry = ctxBuilder.entryFor(el.dataset.date);
     if (entry) { app.sheet = { type: 'day', payload: entry }; render(); }
   },
 

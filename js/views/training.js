@@ -6,13 +6,13 @@ import { barChart, stackedBar, meter, ZONE_COLORS } from '../ui/charts.js';
 import { sessionCard, dayRow, weekStrip, weekStripLegend, phaseBar } from '../ui/components.js';
 import { PHASES, countdown, weeksUntil, zoneTargets } from '../core/race.js';
 import { addDays, weekStart, shortDate, weekdayShort, round, durationLabel, longDate } from '../core/util.js';
-import { weekPlan } from '../core/context.js';
+import { weekPlan, rollingDays } from '../core/context.js';
 import { progression } from '../core/plan.js';
 import { ZONES } from '../core/zones.js';
 
-function zoneMinutes(plan) {
+function zoneMinutes(entries) {
   const totals = [0, 0, 0, 0, 0];
-  plan.days.forEach((d) => {
+  entries.forEach((d) => {
     [d.session, d.extra].filter(Boolean).forEach((session) => {
       (session.blocks || []).forEach((b) => {
         if (b.zone && b.minutes) totals[b.zone - 1] += b.minutes;
@@ -41,14 +41,22 @@ function loadBars(ctx) {
 
 export function render(ctx) {
   const offset = ctx.ui.weekOffset || 0;
-  const monday = addDays(weekStart(ctx.date), offset * 7);
+  // Die Anzeige rollt: Der erste Tag ist heute. Geplant wird weiter je
+  // Kalenderwoche – deshalb kommen die Kennzahlen darunter aus der Woche,
+  // in der der erste Tag des Fensters liegt.
+  const start = addDays(ctx.date, offset * 7);
+  const days = rollingDays(start, 7);
+  const monday = weekStart(start);
   const plan = weekPlan(monday);
   const prog = plan.progression;
-  const zm = zoneMinutes(plan);
+  const zm = zoneMinutes(plan.days);
   const totalRunMin = plan.days
     .flatMap((d) => [d.session, d.extra].filter(Boolean))
     .filter((s) => s.kind === 'run')
     .reduce((a, s) => a + s.durationMin, 0);
+  const rollingSessions = days.flatMap((d) => [d.session, d.extra].filter(Boolean));
+  const rollingRuns = rollingSessions.filter((x) => x.kind === 'run').length;
+  const rollingStrength = rollingSessions.filter((x) => x.kind === 'strength').length;
 
   const next = progression(plan.weekIndex + 1, ctx.state.settings);
   const bars = loadBars(ctx);
@@ -130,8 +138,8 @@ export function render(ctx) {
       <div class="row row--between">
         <button class="icon-btn" data-action="week-shift" data-delta="-1" aria-label="Vorherige Woche">${icon('back')}</button>
         <div style="text-align:center">
-          <div class="section-label">Woche ${plan.weekIndex + 1} · ${esc(prog.blockPhase || prog.phase)}</div>
-          <div class="small secondary" style="margin-top:3px">${esc(shortDate(monday))} – ${esc(shortDate(addDays(monday, 6)))}</div>
+          <div class="section-label">${offset === 0 ? 'Die nächsten 7 Tage' : `In ${offset > 0 ? '' : '−'}${Math.abs(offset)} Woche${Math.abs(offset) === 1 ? '' : 'n'}`}</div>
+          <div class="small secondary" style="margin-top:3px">${esc(shortDate(start))} – ${esc(shortDate(addDays(start, 6)))}</div>
         </div>
         <button class="icon-btn" data-action="week-shift" data-delta="1" aria-label="Nächste Woche"
                 style="transform:rotate(180deg)">${icon('back')}</button>
@@ -141,23 +149,19 @@ export function render(ctx) {
 
     <div class="card">
       <div class="card__head">
-        <h3 class="card__title">Wochenrhythmus</h3>
-        <span class="card__meta">${plan.runs}× Lauf · ${plan.strength}× Kraft</span>
+        <h3 class="card__title">${offset === 0 ? 'Ab heute' : 'Sieben Tage'}</h3>
+        <span class="card__meta">${rollingRuns} Läufe · ${rollingStrength} Kraft im Fenster</span>
       </div>
-      ${weekStrip(plan, ctx.date)}
+      ${weekStrip(days, ctx.date)}
       ${weekStripLegend()}
       <div class="divider" style="margin:14px 0 2px"></div>
       <div class="list">
-        ${plan.days.map((d) => dayRow(d, ctx.date, ctx.state.log[d.date], {
+        ${days.map((d) => dayRow(d, ctx.date, ctx.state.log[d.date], {
           session: ctx.session,
           extra: ctx.extra,
           changed: ctx.sessionChanged,
         })).join('')}
       </div>
-      ${plan.missing.length ? `<div class="note note--warn" style="margin-top:12px">
-        Diese Woche lässt sich nicht vollständig füllen: ${esc(plan.missing.join(', '))} findet im Dienstplan keinen sinnvollen Platz.
-        Die Einheit fällt lieber aus, als sie auf einen Tag zu zwingen, an dem sie schadet.
-      </div>` : ''}
     </div>
 
     ${ctx.date >= monday && ctx.date <= addDays(monday, 6) ? sessionCard(ctx.session, {
@@ -180,10 +184,10 @@ export function render(ctx) {
 
     <div class="card" data-chart>
       <div class="card__head">
-        <h3 class="card__title">Zonenverteilung der Woche</h3>
-        <span class="card__meta">${durationLabel(totalRunMin)} Laufen</span>
+        <h3 class="card__title">Zonenverteilung</h3>
+        <span class="card__meta">Woche ${esc(shortDate(monday))} – ${esc(shortDate(addDays(monday, 6)))}</span>
       </div>
-      <div class="chart-readout">Geplante Laufminuten je Herzfrequenzzone.</div>
+      <div class="chart-readout">Geplante Laufminuten je Herzfrequenzzone · ${durationLabel(totalRunMin)} gesamt.</div>
       ${stackedBar(ZONES.map((z, i) => ({
         label: `Z${z.z}`,
         value: zm[i],
@@ -225,9 +229,22 @@ export function render(ctx) {
 
     <div class="card">
       <div class="card__head">
-        <h3 class="card__title">Progression</h3>
-        <span class="card__meta">Block ${prog.block + 1}, Woche ${prog.inBlock + 1} von 4</span>
+        <h3 class="card__title">Trainingswoche ${plan.weekIndex + 1}</h3>
+        <span class="card__meta">${esc(shortDate(monday))} – ${esc(shortDate(addDays(monday, 6)))}</span>
       </div>
+      <p class="tiny muted" style="margin-top:-4px;margin-bottom:12px">
+        Geplant wird je Kalenderwoche, damit die Einheiten nicht täglich neu springen.
+        Angezeigt wird ab heute.
+      </p>
+      <div class="row wrap" style="gap:6px;margin-bottom:12px">
+        <span class="chip">${esc(prog.blockPhase || prog.phase)}</span>
+        <span class="chip">Block ${prog.block + 1}, Woche ${prog.inBlock + 1} von 4</span>
+        <span class="chip">${plan.runs}× Lauf · ${plan.strength}× Kraft</span>
+      </div>
+      ${plan.missing.length ? `<div class="note note--warn" style="margin-bottom:12px">
+        Diese Woche lässt sich nicht vollständig füllen: ${esc(plan.missing.join(', '))} findet im Dienstplan keinen sinnvollen Platz.
+        Die Einheit fällt lieber aus, als sie auf einen Tag zu zwingen, an dem sie schadet.
+      </div>` : ''}
       <div class="metric-grid">
         <div class="metric">
           <div class="metric__label">Laufumfang</div>

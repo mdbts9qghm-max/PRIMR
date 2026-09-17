@@ -168,15 +168,15 @@ export const KIND_LABEL = {
  * darunter die Art der Einheit. Ein Punkt markiert harte Tage – daran sieht
  * man auf einen Blick, ob genug Abstand dazwischen liegt.
  */
-export function weekStrip(plan, todayIso) {
+export function weekStrip(days, todayIso) {
   // Höhe der Balken sind Belastungspunkte, nicht Minuten: bei Kraft ist die
   // Minutenzahl das Zeitfenster, beim Laufen die tatsächliche Dauer – die
   // beiden nebeneinander zu stellen wäre irreführend.
   const loadOf = (d) => [d.session, d.extra].filter(Boolean)
     .reduce((a, s) => a + (s.load || 0), 0);
-  const max = Math.max(20, ...plan.days.map(loadOf));
+  const max = Math.max(20, ...days.map(loadOf));
 
-  return `<div class="weekstrip">${plan.days.map((d) => {
+  return `<div class="weekstrip">${days.map((d) => {
     const total = loadOf(d);
     const hard = [d.session, d.extra].filter(Boolean).some((s) => s.hard);
     const color = shiftColor(d.shift.raw);

@@ -32,9 +32,20 @@ sagen über denselben Tag immer dasselbe. Darunter ein Blick auf morgen – ob
 dort etwas Hartes ansteht, entscheidet mit, was heute Abend noch geht – und
 zuletzt die Aufgaben.
 
-**Training** – der Wochenrhythmus als Streifen (Dienst, Belastung, Art der
-Einheit, harte Tage markiert), darunter der Wochenplan im Detail, die
-Zonenverteilung, die Progression und die Vorbelastung der letzten 28 Tage.
+**Training** – ein **rollendes Fenster ab heute**: sieben Tage als Streifen
+(Dienst, Belastung, Art der Einheit, harte Tage markiert) und als Liste. Es
+reicht über zwei Kalenderwochen, weil es am heutigen Tag beginnt.
+
+**Geplant wird trotzdem je Kalenderwoche.** Der Coach braucht die Woche als
+Einheit – drei Läufe, drei Krafteinheiten, Abstand zwischen den harten Reizen.
+Würde er täglich über ein rollendes Fenster neu rechnen, sprängen die Einheiten
+bei jeder Neuberechnung hin und her. Deshalb rollt nur die Anzeige; die
+Kennzahlen darunter (Umfang, Höhenmeter, Zonenverteilung, Progression) gehören
+weiterhin zu der Kalenderwoche, in der der erste Tag des Fensters liegt, und
+sind dort mit ihrem Datumsbereich beschriftet.
+
+Darunter die Zonenverteilung, die Progression und die Vorbelastung der letzten
+28 Tage.
 
 **Aufgaben** – ein Raster aus Gewohnheit × Tag über zwei Dienstblöcke, mit dem
 Dienst als Kopfzeile: So sieht man, an welchen Schichttagen Gewohnheiten reißen.

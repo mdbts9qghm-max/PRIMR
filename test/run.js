@@ -542,6 +542,42 @@ test('Der Rennplan rechnet Flachäquivalent und Verpflegung aus', () => {
   assert.ok(p.carbsTotal[0] > 1000);
 });
 
+/* ---------- Rollende Anzeige ---------- */
+
+test('Der Plan hängt am Wochenanfang, nicht am aufgerufenen Tag', () => {
+  // Sonst läge für jeden Tag derselben Woche ein anderer Plan vor – und die
+  // rollende Anzeige zeigte sieben widersprüchliche Wochen.
+  const montag = planWeek('2026-01-05', CONFIG, SETTINGS);
+  const donnerstag = planWeek('2026-01-08', CONFIG, SETTINGS);
+  assert.equal(donnerstag.monday, montag.monday);
+  assert.deepEqual(donnerstag.days.map((d) => d.slot), montag.days.map((d) => d.slot));
+});
+
+test('Ein rollendes Fenster setzt sich aus zwei Wochenplänen zusammen', () => {
+  const start = '2026-01-08'; // Donnerstag
+  const fenster = Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(start, i);
+    return planWeek(date, CONFIG, SETTINGS).days.find((d) => d.date === date);
+  });
+  assert.equal(fenster.length, 7);
+  assert.equal(fenster[0].date, start);
+  assert.equal(fenster[6].date, addDays(start, 6));
+  fenster.forEach((d) => assert.ok(d, 'ein Tag des Fensters fehlt'));
+
+  // Die Tage stammen aus zwei Kalenderwochen und bleiben trotzdem die,
+  // die der Wochenplan für sie vorsieht.
+  const zweite = planWeek('2026-01-12', CONFIG, SETTINGS);
+  assert.equal(fenster[6].slot, zweite.days.find((d) => d.date === fenster[6].date).slot);
+});
+
+test('Die Wochenziele bleiben an der Kalenderwoche hängen', () => {
+  // Das rollende Fenster ändert nichts an dem, was die Woche vorsieht.
+  const a = planWeek('2026-01-08', CONFIG, SETTINGS);
+  assert.equal(a.runs, 3);
+  assert.equal(a.strength, 3);
+  assert.equal(a.monday, '2026-01-05');
+});
+
 /* ---------- Progression ---------- */
 
 test('Vierwochenblock steigt dreimal und entlastet einmal', () => {
