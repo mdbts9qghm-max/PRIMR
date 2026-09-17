@@ -327,11 +327,19 @@ passiert, und die App sah dann keinen Grund, sich zu aktualisieren.
 
 ### Ausliefern
 
-`main` trägt immer die neueste Fassung. Vor dem Zusammenführen:
+`main` trägt immer die neueste Fassung. Vor jedem Stand dorthin:
 
 ```bash
 npm run stamp && npm test
 ```
+
+Ausgeliefert wird über GitHub Pages direkt aus `main` – die App besteht aus
+statischen Dateien im Wurzelverzeichnis und braucht keinen Build. Die
+Einstellung steht in `.github/README-pages.md`; `.nojekyll` schaltet die
+Jekyll-Verarbeitung ab, die sonst Dateien verwerfen würde.
+
+Alle Pfade in der App sind relativ, sie läuft deshalb auch unter einem
+Unterordner wie `/PRIMR/` – Service-Worker-Scope inklusive.
 
 ## Daten
 
