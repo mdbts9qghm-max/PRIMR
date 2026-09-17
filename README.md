@@ -309,9 +309,29 @@ In der Praxis heißt das: **App schließen, öffnen, neue Fassung ist da** – o
 Knopf. Die laufende Version steht unter *Einstellungen → Über*, dort lässt sich
 auch von Hand suchen.
 
-Beim Ausliefern einer neuen Fassung wird die Version an **drei** Stellen
-hochgezählt: `js/version.js`, `sw.js` und `version.json`. Ein Test vergleicht
-alle drei, und `npm run test:update` prüft den ganzen Weg im Browser.
+### Version stempeln
+
+Die Version wird **nicht von Hand gepflegt**, sondern aus dem Inhalt der
+ausgelieferten Dateien abgeleitet:
+
+```bash
+npm run stamp     # schreibt version.json, js/version.js und sw.js
+```
+
+Der Stempel hat die Form `2026.09.17-99e0e0d3`; der hintere Teil ist ein Hash
+über alle ausgelieferten Dateien. `npm test` prüft ihn mit und schlägt fehl,
+sobald eine Datei geändert wurde, ohne neu zu stempeln – genau das ist zweimal
+passiert, und die App sah dann keinen Grund, sich zu aktualisieren.
+
+`npm run test:update` prüft zusätzlich den ganzen Weg im Browser.
+
+### Ausliefern
+
+`main` trägt immer die neueste Fassung. Vor dem Zusammenführen:
+
+```bash
+npm run stamp && npm test
+```
 
 ## Daten
 

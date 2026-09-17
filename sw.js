@@ -6,7 +6,7 @@
 // wird und das Netz nie gefragt wird. Der Cache ist hier nur die Rückfallebene
 // für den Fall, dass gerade keine Verbindung besteht.
 
-const VERSION = '2026.09.17';
+const VERSION = '2026.09.17-99e0e0d3';
 const CACHE = `primr-${VERSION}`;
 const NETWORK_TIMEOUT_MS = 4000;
 

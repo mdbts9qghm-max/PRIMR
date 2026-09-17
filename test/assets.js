@@ -7,6 +7,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VERSION } from '../js/version.js';
+import { stampMatches, computeStamp, currentVersion } from '../tools/stamp.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const sw = readFileSync(join(root, 'sw.js'), 'utf8');
@@ -30,6 +31,16 @@ function walk(dir) {
     return statSync(abs).isDirectory() ? walk(rel) : [rel];
   });
 }
+
+test('Der Versionsstempel passt zum Inhalt der App', () => {
+  // Zweimal ist eine Änderung ohne Versionssprung ausgeliefert worden – die
+  // App sah dann keinen Grund, sich zu aktualisieren. Der Stempel wird
+  // deshalb aus dem Dateiinhalt abgeleitet, nicht von Hand gepflegt.
+  assert.ok(
+    stampMatches(),
+    `Version ${currentVersion()} passt nicht zum Inhalt (erwartet …-${computeStamp().digest}). Beheben mit: npm run stamp`,
+  );
+});
 
 test('sw.js, js/version.js und version.json nennen dieselbe Version', () => {
   const match = sw.match(/const VERSION = '([^']+)'/);
