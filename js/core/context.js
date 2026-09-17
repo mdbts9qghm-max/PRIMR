@@ -105,6 +105,12 @@ export function build(isoDate = todayIso()) {
   // ist. Steht später noch ein freier Tag ohne Einheit, wird er vorgeschlagen.
   const moveTo = suggestMove(plan, entry, directive, isoDate);
 
+  // Der Blick auf morgen gehört zur heutigen Entscheidung: Ob abends noch
+  // etwas geht, hängt davon ab, was danach ansteht.
+  const nextIso = addDays(isoDate, 1);
+  const nextPlan = weekPlan(nextIso);
+  const tomorrow = nextPlan.days.find((d) => d.date === nextIso) || null;
+
   const tl = dayTimeline(day.key, day.prevKey, day.nextKey);
 
   return {
@@ -139,6 +145,10 @@ export function build(isoDate = todayIso()) {
     entry,
     session: adjusted ? adjusted.session : null,
     ramp: entry ? entry.ramp : null,
+    tomorrow,
+    // Longrun und intensive Einheit tragen die Woche. Fällt eine davon aus,
+    // fehlt der Reiz; die lockeren Einheiten lassen sich dagegen ersetzen.
+    isKeySession: Boolean(entry && ['long', 'long_b', 'intensiv'].includes(entry.slot)),
     extra: adjustedExtra ? adjustedExtra.session : null,
     sessionChanged: adjusted ? adjusted.changed : false,
     sessionNote: adjusted ? adjusted.note : null,

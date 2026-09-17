@@ -4,7 +4,9 @@
 import assert from 'node:assert/strict';
 import { shiftDay, DEFAULT_CYCLE, trainingWindow, typeFor } from '../js/core/shift.js';
 import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff } from '../js/core/sleep.js';
-import { planWeek, progression, weekIndex, loadBalance, illnessRamp, MAX_RAMP_DAYS } from '../js/core/plan.js';
+import {
+  planWeek, progression, weekIndex, loadBalance, illnessRamp, applyDirective, MAX_RAMP_DAYS,
+} from '../js/core/plan.js';
 import {
   phaseFor, volumePlan, vertTarget, phaseVert, features, MAX_WEEKLY_GROWTH,
   zoneTargets, vertRateTarget, terrainSplit, racePlan as racePlanFn,
@@ -671,6 +673,28 @@ test('Angezeigter Wert und Ampel passen immer zusammen', () => {
 test('Fehlende Werte kippen die Berechnung nicht', () => {
   const r = readiness({ date: '2026-02-01', recovery: 55 }, baselines([], '2026-02-01'), 'frei', null, 8);
   assert.equal(r.score, 55);
+});
+
+/* ---------- Heute-Tab und Wochenplan ---------- */
+
+test('Die angepasste Einheit ersetzt die geplante vollständig', () => {
+  const entry = planWeek('2026-01-08', CONFIG, SETTINGS).days.find((d) => d.date === '2026-01-08');
+  const rot = applyDirective(entry, trainingDirective(20, entry.shift.key));
+  assert.equal(rot.changed, true);
+  assert.notEqual(rot.session.title, entry.session.title);
+
+  const gruen = applyDirective(entry, trainingDirective(90, entry.shift.key));
+  assert.equal(gruen.changed, false);
+  assert.equal(gruen.session.title, entry.session.title);
+});
+
+test('Gekürzte Einheiten behalten Struktur und Zielzonen', () => {
+  const entry = planWeek('2026-01-08', CONFIG, SETTINGS).days.find((d) => d.slot === 'long');
+  if (!entry) return;
+  const gelb = applyDirective(entry, trainingDirective(60, entry.shift.key));
+  assert.equal(gelb.session.primaryZone, entry.session.primaryZone);
+  assert.ok(gelb.session.durationMin < entry.session.durationMin);
+  assert.equal(gelb.session.blocks.length, entry.session.blocks.length);
 });
 
 /* ---------- Belastung ---------- */

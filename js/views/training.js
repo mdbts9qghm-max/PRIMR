@@ -148,7 +148,11 @@ export function render(ctx) {
       ${weekStripLegend()}
       <div class="divider" style="margin:14px 0 2px"></div>
       <div class="list">
-        ${plan.days.map((d) => dayRow(d, ctx.date, ctx.state.log[d.date])).join('')}
+        ${plan.days.map((d) => dayRow(d, ctx.date, ctx.state.log[d.date], {
+          session: ctx.session,
+          extra: ctx.extra,
+          changed: ctx.sessionChanged,
+        })).join('')}
       </div>
       ${plan.missing.length ? `<div class="note note--warn" style="margin-top:12px">
         Diese Woche lässt sich nicht vollständig füllen: ${esc(plan.missing.join(', '))} findet im Dienstplan keinen sinnvollen Platz.

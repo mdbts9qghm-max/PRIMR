@@ -84,6 +84,7 @@ export function render(ctx) {
   const load = ctx.load;
   const trend = ctx.readinessTrend || [];
   const doneCount = ctx.doneToday.filter((id) => ctx.tasks.some((t) => t.id === id)).length;
+  const rc = ctx.plan ? ctx.plan.race : null;
 
   return `
   <div class="view">
@@ -193,6 +194,13 @@ export function render(ctx) {
       </div>
     </div>` : ''}
 
+    ${ctx.entry && ctx.session && ctx.session.kind !== 'rest' && ctx.session.kind !== 'sick' ? `
+    <div class="row wrap" style="gap:6px;margin:2px 0 -6px">
+      ${rc ? `<span class="chip">${esc(rc.phase.label)} · noch ${rc.weeksOut} Wochen</span>` : ''}
+      ${ctx.isKeySession ? '<span class="chip chip--on">Schlüsseleinheit der Woche</span>' : ''}
+      ${ctx.session.vertM ? `<span class="chip">${ctx.session.vertM} hm</span>` : ''}
+    </div>` : ''}
+
     ${sessionCard(ctx.session, {
       window: ctx.window,
       why: ctx.entry ? ctx.entry.why : null,
@@ -212,6 +220,21 @@ export function render(ctx) {
       label: 'Zweite Einheit heute',
       why: 'Zwei lockere Einheiten an einem freien Tag – so gehen drei Läufe und drei Krafteinheiten auch in eine Woche mit zwei Tagschichten.',
     }) : ''}
+
+    ${ctx.tomorrow ? `<div class="card">
+      <div class="row row--between" style="align-items:flex-start;gap:12px">
+        <div class="grow" style="min-width:0">
+          <div class="section-label">Morgen</div>
+          <div style="font-size:15px;font-weight:500;margin-top:5px">${esc(ctx.tomorrow.session.title)}</div>
+          <div class="tiny muted" style="margin-top:3px">${esc(ctx.tomorrow.shift.label)}${
+            ctx.tomorrow.session.durationMin ? ` · ${durationLabel(ctx.tomorrow.session.durationMin)}` : ''}</div>
+        </div>
+        <span class="chip" style="flex:none">${esc(ctx.tomorrow.shift.code)}</span>
+      </div>
+      ${ctx.tomorrow.session.hard ? `<div class="note note--warn" style="margin-top:12px">
+        Morgen steht eine harte Einheit an. Heute Abend zählt der Schlaf mehr als alles andere.
+      </div>` : ''}
+    </div>` : ''}
 
     <div class="card">
       <div class="row" style="gap:16px;align-items:center;margin-bottom:6px">

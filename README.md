@@ -22,7 +22,15 @@ Zeitstrahl: Dienst, Trainingsfenster und Schlaf nebeneinander, mit einer
 Markierung für die aktuelle Uhrzeit. Darunter die WHOOP-Werte und daraus die
 Bereitschaft von 0 bis 100 mit ihrem Verlauf. Hinter „Auswirkungen auf Tag und
 Training“ steht, welcher Wert wie stark eingeflossen ist und was das konkret
-für heute bedeutet. Es folgen die vorgeschlagene Einheit und die Aufgaben.
+für heute bedeutet.
+
+Dann kommt **das Training des Coaches** – dieselbe Einheit, die im Wochenplan
+steht, mit Phase, Countdown und dem Hinweis, wenn es die Schlüsseleinheit der
+Woche ist. Hat die Bereitschaft sie verändert, steht die ursprüngliche Planung
+daneben, und der Wochenplan markiert den Tag als *angepasst*: Beide Ansichten
+sagen über denselben Tag immer dasselbe. Darunter ein Blick auf morgen – ob
+dort etwas Hartes ansteht, entscheidet mit, was heute Abend noch geht – und
+zuletzt die Aufgaben.
 
 **Training** – der Wochenrhythmus als Streifen (Dienst, Belastung, Art der
 Einheit, harte Tage markiert), darunter der Wochenplan im Detail, die

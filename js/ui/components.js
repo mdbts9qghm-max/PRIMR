@@ -122,10 +122,20 @@ export function sessionCard(session, opts = {}) {
 }
 
 /** Zeile in der Wochenübersicht. */
-export function dayRow(entry, todayIso, logged) {
+/**
+ * Zeile der Wochenübersicht.
+ *
+ * `adjusted` ist die Fassung, die die Bereitschaft von heute übrig lässt.
+ * Ohne sie zeigte die Woche für heute etwas anderes an als der Heute-Tab –
+ * die App widersprach sich also selbst über denselben Tag.
+ */
+export function dayRow(entry, todayIso, logged, adjusted) {
   const isToday = entry.date === todayIso;
+  const session = (isToday && adjusted && adjusted.session) || entry.session;
+  const extra = isToday && adjusted ? adjusted.extra : entry.extra;
+  const changed = isToday && adjusted && adjusted.changed;
   const sessions = (logged && logged.sessions) || [];
-  const planned = [entry.session, entry.extra].filter(Boolean);
+  const planned = [session, extra].filter(Boolean);
   const done = planned.length > 0 && planned.every((s) => sessions.some((x) => x.slot === s.slot));
   return `
     <button class="list__item" style="width:100%;text-align:left;background:none"
@@ -137,13 +147,14 @@ export function dayRow(entry, todayIso, logged) {
       <div class="grow" style="min-width:0">
         <div class="row" style="gap:6px">
           <span class="chip" style="padding:2px 8px">${esc(entry.shift.short)}</span>
-          <span class="block-row__label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(entry.session.title)}${entry.extra ? ` + ${esc(entry.extra.title)}` : ''}</span>
+          <span class="block-row__label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(session.title)}${extra ? ` + ${esc(extra.title)}` : ''}</span>
+          ${changed ? '<span class="chip" style="padding:1px 7px;font-size:10px">angepasst</span>' : ''}
         </div>
-        <div class="tiny muted" style="margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(entry.session.subtitle || entry.shift.label)}</div>
+        <div class="tiny muted" style="margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(session.subtitle || entry.shift.label)}</div>
       </div>
       <div style="flex:none;text-align:right">
         ${done ? `<span class="tone-good">${icon('check')}</span>`
-          : entry.session.durationMin ? `<span class="tiny muted num">${entry.session.durationMin + (entry.extra ? entry.extra.durationMin : 0)}′</span>` : ''}
+          : session.durationMin ? `<span class="tiny muted num">${session.durationMin + (extra ? extra.durationMin : 0)}′</span>` : ''}
       </div>
     </button>`;
 }
