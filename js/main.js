@@ -536,12 +536,12 @@ const actions = {
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) { toast('Noch nicht installiert'); return; }
     await reg.update().catch(() => {});
-    toast(waitingWorker ? 'Neue Version gefunden' : `Aktuell – Version ${VERSION}`);
+    if (reg.waiting && takeOver(reg.waiting)) { toast('Neue Version wird geladen'); return; }
+    toast(`Aktuell – Version ${VERSION}`);
   },
 
   'apply-update': () => {
-    if (waitingWorker) waitingWorker.postMessage('skip-waiting');
-    else window.location.reload();
+    if (!takeOver(waitingWorker)) reloadOnce();
   },
 
   'export-data': () => {
@@ -653,8 +653,21 @@ function boot() {
 
 /* ---------------- Aktualisierung ---------------- */
 
+// Innerhalb dieser Zeitspanne nach dem Start gilt die App als "gerade
+// geöffnet": Eine neue Fassung wird dann still übernommen. Danach wäre ein
+// Neuladen ein Eingriff mitten in die Nutzung – dort fragt die App nach.
+const QUIET_UPDATE_MS = 12000;
+const RELOAD_GUARD = 'primr.updateReload';
+
 let waitingWorker = null;
 let reloading = false;
+const startedAt = Date.now();
+
+function reloadOnce() {
+  if (reloading) return;
+  reloading = true;
+  window.location.reload();
+}
 
 function showUpdateBar() {
   if (document.getElementById('update-bar')) return;
@@ -667,15 +680,61 @@ function showUpdateBar() {
   document.body.appendChild(el);
 }
 
+/** Wartenden Worker übernehmen lassen. Der Reload folgt aus controllerchange. */
+function takeOver(worker) {
+  if (!worker) return false;
+  worker.postMessage('skip-waiting');
+  return true;
+}
+
+function handleWaiting(worker) {
+  waitingWorker = worker;
+  if (Date.now() - startedAt < QUIET_UPDATE_MS) takeOver(worker);
+  else showUpdateBar();
+}
+
 /**
- * Der Service Worker liefert zuerst aus dem Netz und nur ersatzweise aus dem
- * Cache. Trotzdem übernimmt ein neuer Worker erst, wenn alle alten Seiten
- * geschlossen sind – bei einer installierten App passiert das praktisch nie.
- * Deshalb wird hier aktiv nach Aktualisierungen gesucht und angeboten, sie
- * sofort zu übernehmen.
+ * Gegenprobe über version.json.
+ *
+ * Ob der Browser von sich aus nach einer neuen sw.js sucht, hängt an seinen
+ * eigenen Regeln – bei einer installierten App kann das bis zu einem Tag
+ * dauern. Diese Datei wird bei jedem Start am Cache vorbei geladen und mit
+ * der eingebauten Version verglichen. Weicht sie ab, läuft noch eine alte
+ * Fassung, und die App holt die neue aktiv nach, statt zu warten.
  */
+async function checkVersion(reg) {
+  let remote;
+  try {
+    const res = await fetch('./version.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    ({ version: remote } = await res.json());
+  } catch (err) {
+    return; // offline – dann bleibt die installierte Fassung stehen
+  }
+
+  if (!remote || remote === VERSION) {
+    sessionStorage.removeItem(RELOAD_GUARD);
+    return;
+  }
+
+  // Nur ein erzwungener Neustart je Sitzung und Version. Ohne diese Bremse
+  // liefe die App im Kreis, falls die Dateien auf dem Server einmal nicht zu
+  // ihrer Versionsangabe passen.
+  if (sessionStorage.getItem(RELOAD_GUARD) === remote) return;
+  sessionStorage.setItem(RELOAD_GUARD, remote);
+
+  if (reg) {
+    await reg.update().catch(() => {});
+    if (reg.waiting && takeOver(reg.waiting)) return;
+  }
+  reloadOnce();
+}
+
 function setupServiceWorker() {
-  if (!('serviceWorker' in navigator)) return;
+  if (!('serviceWorker' in navigator)) {
+    checkVersion(null);
+    return;
+  }
 
   // Beim allerersten Start übernimmt der Worker die Seite von sich aus
   // (clients.claim). Das ist kein Update – wer hier neu lädt, schickt jeden
@@ -684,9 +743,8 @@ function setupServiceWorker() {
   const hadController = Boolean(navigator.serviceWorker.controller);
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloading) return;
-    reloading = true;
-    window.location.reload();
+    if (!hadController) return;
+    reloadOnce();
   });
 
   // updateViaCache: 'none' – sonst kann der Browser sw.js selbst
@@ -695,17 +753,11 @@ function setupServiceWorker() {
     const track = (worker) => {
       if (!worker) return;
       worker.addEventListener('statechange', () => {
-        if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-          waitingWorker = worker;
-          showUpdateBar();
-        }
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) handleWaiting(worker);
       });
     };
 
-    if (reg.waiting && navigator.serviceWorker.controller) {
-      waitingWorker = reg.waiting;
-      showUpdateBar();
-    }
+    if (reg.waiting && navigator.serviceWorker.controller) handleWaiting(reg.waiting);
     track(reg.installing);
     reg.addEventListener('updatefound', () => track(reg.installing));
 
@@ -715,7 +767,8 @@ function setupServiceWorker() {
     });
     setInterval(check, 60 * 60 * 1000);
     check();
-  }).catch(() => {});
+    checkVersion(reg);
+  }).catch(() => checkVersion(null));
 }
 
 document.addEventListener('DOMContentLoaded', boot);

@@ -14,6 +14,7 @@ const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './version.json',
   './css/app.css',
   './icons/icon.svg',
   './js/main.js',
@@ -41,12 +42,12 @@ const ASSETS = [
   './js/views/sheets.js',
 ];
 
+// Bewusst ohne skipWaiting: Der neue Worker wartet, bis die App ihn holt.
+// Die Seite entscheidet, wann übernommen wird – beim Start sofort und still,
+// während der Nutzung erst auf Zuruf. Ein Neuladen mitten in einer Eingabe
+// wäre sonst die Regel.
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => cache.addAll(ASSETS))
-      .then(() => self.skipWaiting()),
-  );
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
 });
 
 self.addEventListener('activate', (event) => {

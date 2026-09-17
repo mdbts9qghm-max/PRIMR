@@ -31,10 +31,27 @@ function walk(dir) {
   });
 }
 
-test('sw.js und js/version.js nennen dieselbe Version', () => {
+test('sw.js, js/version.js und version.json nennen dieselbe Version', () => {
   const match = sw.match(/const VERSION = '([^']+)'/);
   assert.ok(match, 'sw.js enthält keine Versionsangabe');
   assert.equal(match[1], VERSION);
+  const published = JSON.parse(readFileSync(join(root, 'version.json'), 'utf8'));
+  assert.equal(published.version, VERSION, 'version.json weicht ab – die App würde endlos aktualisieren wollen');
+});
+
+test('Der wartende Worker übernimmt nicht von selbst', () => {
+  // skipWaiting im install-Ereignis lädt die Seite mitten in einer Eingabe
+  // neu. Wann übernommen wird, entscheidet die App.
+  const install = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('activate'"));
+  assert.ok(!install.includes('skipWaiting'), 'install ruft skipWaiting auf');
+  assert.ok(sw.includes("event.data === 'skip-waiting'"), 'kein Weg, den Worker übernehmen zu lassen');
+});
+
+test('Beim Start wird die Version am Cache vorbei geprüft', () => {
+  const main = readFileSync(join(root, 'js/main.js'), 'utf8');
+  assert.match(main, /fetch\('\.\/version\.json',\s*\{\s*cache:\s*'no-store'\s*\}\)/);
+  assert.match(main, /QUIET_UPDATE_MS/, 'kein stilles Fenster beim Start');
+  assert.match(main, /sessionStorage\.setItem\(RELOAD_GUARD/, 'keine Bremse gegen wiederholtes Neuladen');
 });
 
 test('Der Cache-Name enthält die Version', () => {
@@ -90,7 +107,8 @@ test('Die erste Übernahme löst kein Neuladen aus', () => {
   // wird jeder neue Nutzer einmal grundlos neu geladen.
   const main = readFileSync(join(root, 'js/main.js'), 'utf8');
   assert.match(main, /hadController/);
-  assert.match(main, /if \(!hadController \|\| reloading\) return;/);
+  assert.match(main, /if \(!hadController\) return;/);
+  assert.match(main, /function reloadOnce/, 'kein Schutz gegen mehrfaches Neuladen');
 });
 
 test('Messwerte werden nicht an zwei Stellen aufgezählt', () => {

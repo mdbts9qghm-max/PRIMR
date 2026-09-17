@@ -263,22 +263,36 @@ Die App liefert über den Service Worker **zuerst aus dem Netz** und nur
 ersatzweise aus dem Cache. Andersherum – so lief die erste Fassung – bleibt eine
 einmal installierte App für immer auf dem Stand ihrer Installation stehen.
 
-Drei Dinge gehören dazu, und alle drei sind nötig:
+Vier Dinge gehören dazu, und alle vier sind nötig:
 
 1. `fetch` im Service Worker läuft mit `cache: 'reload'`. Unter dem Worker liegt
    noch der HTTP-Cache des Browsers; ohne das liefert diese Ebene wieder die
    alte Datei aus.
 2. Die Registrierung nutzt `updateViaCache: 'none'`, sonst speichert der Browser
    `sw.js` selbst zwischen und bemerkt eine neue Fassung tagelang nicht.
-3. Ein wartender Worker wird nicht erzwungen, sondern angeboten: Die App zeigt
-   „Neue Version verfügbar“ mit einem Knopf. Das erste `clients.claim()` beim
-   allerersten Start löst dabei bewusst **kein** Neuladen aus – das wäre kein
-   Update, sondern nur ein überflüssiger Reload für jeden neuen Nutzer.
+3. Der wartende Worker übernimmt **nicht** von selbst (kein `skipWaiting` im
+   `install`). Wann übernommen wird, entscheidet die App: **beim Start still**,
+   während der Nutzung erst nach Rückfrage. Sonst lädt die App mitten in einer
+   Eingabe neu.
+4. Beim Start wird `version.json` am Cache vorbei geladen und mit der
+   eingebauten Version verglichen. Ob der Browser von sich aus nach einer neuen
+   `sw.js` sucht, hängt an seinen eigenen Regeln – bei einer installierten App
+   kann das bis zu einem Tag dauern. Weicht die Datei ab, holt die App die neue
+   Fassung aktiv nach, statt zu warten.
 
-Die laufende Version steht unter *Einstellungen → Über*, dort lässt sich auch
-von Hand nach einer Aktualisierung suchen. Beim Ausliefern einer neuen Fassung
-wird `VERSION` in `js/version.js` **und** in `sw.js` hochgezählt; ein Test
-vergleicht beide.
+Das erste `clients.claim()` beim allerersten Start löst dabei bewusst **kein**
+Neuladen aus – das wäre kein Update, sondern nur ein überflüssiger Reload für
+jeden neuen Nutzer. Gegen ein Neuladen im Kreis (falls `version.json` einmal
+nicht zu den ausgelieferten Dateien passt) gibt es eine Bremse: höchstens ein
+erzwungener Neustart je Sitzung und Version.
+
+In der Praxis heißt das: **App schließen, öffnen, neue Fassung ist da** – ohne
+Knopf. Die laufende Version steht unter *Einstellungen → Über*, dort lässt sich
+auch von Hand suchen.
+
+Beim Ausliefern einer neuen Fassung wird die Version an **drei** Stellen
+hochgezählt: `js/version.js`, `sw.js` und `version.json`. Ein Test vergleicht
+alle drei, und `npm run test:update` prüft den ganzen Weg im Browser.
 
 ## Daten
 
