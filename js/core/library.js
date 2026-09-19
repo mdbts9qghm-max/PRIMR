@@ -17,70 +17,6 @@ export const LOAD_FACTOR = {
 
 export const HARD_SLOTS = ['long', 'intensiv', 'kraft_a'];
 
-/** Intervallformen, die im Wochenrhythmus rotieren. */
-export const INTENSIV_ROTATION = [
-  {
-    key: 'threshold_lang',
-    title: 'Schwelle lang',
-    focus: 'Laktatschwelle',
-    reps: (w) => 3 + Math.min(2, Math.floor(w / 8)),
-    repMin: (w) => 8 + Math.min(4, Math.floor(w / 6)),
-    restMin: 2,
-    zone: 3,
-    note: 'Das Tempo soll sich anstrengend, aber kontrollierbar anfühlen – du könntest noch kurze Sätze sprechen.',
-  },
-  {
-    key: 'vo2_3min',
-    title: 'VO2max 3 min',
-    focus: 'Maximale Sauerstoffaufnahme',
-    reps: (w) => 5 + Math.min(3, Math.floor(w / 6)),
-    repMin: () => 3,
-    restMin: 2,
-    zone: 4,
-    note: 'Die erste Wiederholung muss sich zu leicht anfühlen. Wenn nicht, bist du zu schnell gestartet.',
-  },
-  {
-    key: 'cruise',
-    title: 'Cruise-Intervalle',
-    focus: 'Tempohärte bei kurzer Pause',
-    reps: (w) => 4 + Math.min(3, Math.floor(w / 7)),
-    repMin: () => 5,
-    restMin: 1,
-    zone: 3,
-    note: 'Kurze Pausen halten den Laktatspiegel oben – deshalb ist hier Disziplin beim Tempo wichtiger als Mut.',
-  },
-  {
-    key: 'vo2_1000',
-    title: '1000er',
-    focus: 'VO2max und Laufökonomie',
-    reps: (w) => 4 + Math.min(3, Math.floor(w / 6)),
-    repMin: () => 4,
-    restMin: 2,
-    zone: 4,
-    note: 'Gleichmäßig laufen. Die letzte Wiederholung soll die schnellste sein können, nicht müssen.',
-  },
-  {
-    key: 'threshold_block',
-    title: 'Schwellen-Block',
-    focus: 'Dauerleistung an der Schwelle',
-    reps: (w) => 2 + Math.min(1, Math.floor(w / 12)),
-    repMin: (w) => 10 + Math.min(6, Math.floor(w / 5)),
-    restMin: 3,
-    zone: 3,
-    note: 'Der zäheste Reiz im Plan und der wirksamste für deine Schwellenherzfrequenz.',
-  },
-  {
-    key: 'kurz_schnell',
-    title: 'Kurz und schnell',
-    focus: 'Spritzigkeit, Laufökonomie',
-    reps: (w) => 8 + Math.min(6, Math.floor(w / 4)),
-    repMin: () => 1,
-    restMin: 2,
-    zone: 5,
-    note: 'Technik vor Tempo: hohe Frequenz, aufrechter Oberkörper, Fuß unter dem Körper.',
-  },
-];
-
 function warmup(min = 12) {
   return { label: 'Einlaufen', detail: `${min} min locker`, zone: 1, minutes: min };
 }
@@ -89,100 +25,201 @@ function cooldown(min = 10) {
 }
 
 /**
- * Intensive Laufeinheit für Wochenindex w und Gesamtdauer targetMin.
+ * Qualitätseinheiten am Berg.
  *
- * maxZone begrenzt, welche Formen überhaupt infrage kommen. Für ein Rennen
- * über 19 Stunden hat Zone 5 keinen Wert – die Erholung, die eine solche
- * Einheit kostet, fehlt danach bei der langen Einheit, und genau die
- * entscheidet über das Ziel.
+ * Für ein Rennen über 86 km mit 4295 Höhenmetern sind Bahnintervalle und
+ * 1000er verschenkte Erholung: Sie trainieren eine Fähigkeit, die in diesem
+ * Rennen nie abgerufen wird. Alles Harte findet deshalb am Anstieg statt und
+ * wird in Höhenmetern gerechnet, nicht in Metern auf der Ebene.
+ *
+ * Die vier Formen rotieren. Reicht das Wochenziel nicht für Wiederholungen,
+ * greift der Berg-Dauerlauf – er sammelt auch kleine Mengen ein.
  */
-export function intensivSession(w, targetMin, opts = {}) {
-  const pool = opts.maxZone
-    ? INTENSIV_ROTATION.filter((r) => r.zone <= opts.maxZone)
-    : INTENSIV_ROTATION;
-  const tpl = (pool.length ? pool : INTENSIV_ROTATION)[w % (pool.length || INTENSIV_ROTATION.length)];
-  let reps = tpl.reps(w);
-  const repMin = tpl.repMin(w);
-  const wu = 12;
-  const cd = 10;
+export const HILL_FORMS = [
+  {
+    key: 'intervalle',
+    title: 'Berg-Intervalle',
+    zone: 4,
+    focus: 'Aerobe Obergrenze am Anstieg',
+    minReps: 4,
+    climbMinPer100: 7,
+    note: 'Die erste Wiederholung muss sich zu leicht anfühlen. Oben nicht stehen bleiben – im Rennen geht es nach jedem Anstieg direkt weiter.',
+    detail: (hm) => `${hm} hm am Stück zügig laufen, oben kurz durchatmen, locker herunter. Die einzige Einheit im Plan, in der du am Anstieg wirklich drückst.`,
+  },
+  {
+    key: 'schwelle',
+    title: 'Berg-Schwelle',
+    zone: 3,
+    focus: 'Dauerleistung am Anstieg',
+    minReps: 3,
+    climbMinPer100: 9,
+    note: 'Anstrengend, aber kontrollierbar – du könntest noch kurze Sätze sprechen. Genau dieses Gefühl trägt im Rennen über Stunden.',
+    detail: (hm) => `${hm} hm gleichmäßig, ohne Einbruch am Ende. Tempo so wählen, dass die letzte Wiederholung wie die erste aussieht.`,
+  },
+  {
+    key: 'hiking',
+    title: 'Power-Hiking-Block',
+    zone: 3,
+    focus: 'Die Renngeschwindigkeit am Anstieg',
+    minReps: 3,
+    climbMinPer100: 11,
+    note: 'Bei 4295 Höhenmetern gehst du den Großteil der Anstiege. Gehen ist hier die Renngeschwindigkeit und keine Schwäche – wer es nicht übt, verliert damit mehr Zeit als durch jedes zu langsame Laufen.',
+    detail: (hm) => `${hm} hm durchgehend gehen, nicht laufen. Kurze Schritte, Hände auf den Oberschenkeln, Blick nach vorn. Miss dabei deine Höhenmeter pro Stunde.`,
+  },
+  {
+    key: 'dauerlauf',
+    title: 'Berg-Dauerlauf',
+    zone: 2,
+    focus: 'Höhenmeter im Grundlagentempo',
+    minReps: 0,
+    climbMinPer100: 10,
+    note: 'Keine Wiederholungen, sondern eine wellige Runde. Anstiege gehen oder locker laufen, Abstiege kontrolliert – so sieht der größte Teil des Rennens aus.',
+    detail: (hm) => `Welliges Profil suchen und über die Einheit rund ${hm} hm sammeln. Puls in Zone 2 halten, an den Anstiegen darf er kurz darüber gehen.`,
+  },
+];
 
-  // Wiederholungen so kürzen, dass die Einheit ins Zeitfenster passt.
-  const per = repMin + tpl.restMin;
-  while (reps > 2 && wu + cd + reps * per - tpl.restMin > targetMin) reps -= 1;
+/**
+ * Bergeinheit für ein Höhenmeter-Budget.
+ *
+ * Das Budget bestimmt die Form. Reicht es nicht für den längsten erreichbaren
+ * Anstieg, wird nicht die Einheit gestrichen, sondern die Wiederholung kürzer
+ * genommen – ein Anstieg über 60 hm ist eine vollwertige Wiederholung. Erst
+ * unterhalb von 40 hm lohnt sich keine mehr; dann werden die Höhenmeter in
+ * einem Dauerlauf auf welligem Profil eingesammelt. Passt die Einheit nicht
+ * ins Zeitfenster, wird die Menge gekürzt – nie das Tempo erhöht.
+ */
+const MIN_REP_VERT = 40;
 
-  const work = reps * repMin;
-  const total = wu + cd + reps * per - tpl.restMin;
+export function hillSession(w, budgetVert, hillMeters, minutesAvailable) {
+  const wanted = HILL_FORMS[w % HILL_FORMS.length];
+  // Höhe einer Wiederholung: so viel wie der Anstieg hergibt, aber nie mehr,
+  // als das Budget für die Mindestzahl an Wiederholungen zulässt.
+  const repVert = wanted.minReps > 0
+    ? Math.min(hillMeters, Math.floor(budgetVert / wanted.minReps / 10) * 10)
+    : 0;
+  const form = wanted.minReps > 0 && repVert >= MIN_REP_VERT
+    ? wanted
+    : HILL_FORMS[HILL_FORMS.length - 1];
 
+  const continuous = form.minReps === 0;
+  let reps = continuous ? 0 : Math.max(form.minReps, Math.floor(budgetVert / repVert));
+  let vertM = continuous ? budgetVert : reps * repVert;
+  const warm = continuous ? 10 : 12;
+  const total = () => warm + Math.round((vertM / 100) * form.climbMinPer100)
+    + Math.round((vertM / 100) * 4) + 10;
+
+  while (minutesAvailable && total() > minutesAvailable
+    && (continuous ? vertM > 100 : reps > form.minReps)) {
+    if (continuous) vertM -= 50;
+    else { reps -= 1; vertM = reps * repVert; }
+  }
+
+  const minutes = total();
   return {
     slot: 'intensiv',
     kind: 'run',
-    hard: true,
-    title: tpl.title,
-    subtitle: `${reps} × ${repMin} min · ${zoneLabel(tpl.zone)}`,
-    focus: tpl.focus,
-    durationMin: Math.round(total),
-    primaryZone: tpl.zone,
+    hard: form.zone >= 3,
+    title: form.title,
+    subtitle: continuous
+      ? `${minutes} min · ${vertM} hm · ${zoneLabel(form.zone)}`
+      : `${reps} × ${repVert} hm · ${vertM} hm gesamt · ${zoneLabel(form.zone)}`,
+    focus: form.focus,
+    durationMin: minutes,
+    primaryZone: form.zone,
+    vertM,
     blocks: [
-      warmup(wu),
+      warmup(warm),
       {
-        label: 'Hauptteil',
-        detail: `${reps} × ${repMin} min in ${zoneRange(tpl.zone)}, dazwischen ${tpl.restMin} min Trabpause in Zone 1`,
-        zone: tpl.zone,
-        minutes: reps * per - tpl.restMin,
+        label: continuous ? 'Hauptteil' : `${reps} × Anstieg`,
+        detail: form.detail(continuous ? vertM : repVert),
+        zone: form.zone,
+        minutes: Math.round((vertM / 100) * form.climbMinPer100),
       },
-      cooldown(cd),
+      {
+        label: 'Abstiege',
+        detail: 'Kontrolliert herunter, kurze Schritte, hohe Frequenz. Nicht mit gestrecktem Bein bremsen – das ist die Bewegung, die im Rennen die Oberschenkel zerlegt.',
+        zone: 2,
+        minutes: Math.round((vertM / 100) * 4),
+      },
+      cooldown(10),
     ],
-    coachNote: tpl.note,
-    workMinutes: work,
-    load: Math.round(total * LOAD_FACTOR.intensiv),
+    coachNote: form.note,
+    load: Math.round(minutes * (form.zone >= 4 ? 1.7 : form.zone === 3 ? 1.45 : 1.1)),
   };
 }
 
 /**
- * Höhenmeter-Einheit: Bergwiederholungen.
+ * Lange Einheit mit Ziel: Time on Feet statt Kilometer.
  *
- * Ohne langen Anstieg vor der Tür entstehen Höhenmeter aus Wiederholungen.
- * Das ist keine Notlösung: Für die Muskulatur zählt die Summe, und der
- * Wechsel aus Steigen und Abwärtslaufen trifft genau die Belastung, die im
- * Rennen tausendfach vorkommt.
+ * Bei einem Rennen über 19 bis 22 Stunden zählt nicht, wie schnell du eine
+ * Distanz läufst, sondern wie lange du dich bewegen kannst, ohne dass Magen,
+ * Kopf oder Beine aufgeben. Deshalb wird hier in Stunden gerechnet, gegessen
+ * wie im Rennen und der Anstieg gegangen statt gelaufen.
  */
-export function vertSession(targetVert, hillMeters, opts = {}) {
-  const reps = Math.max(3, Math.round(targetVert / hillMeters));
-  const actual = reps * hillMeters;
-  // Grob: 100 hm bergauf im zügigen Gehen oder Traben ≈ 8 min, Abstieg ≈ 4 min.
-  const minutes = Math.round(24 + reps * ((hillMeters / 100) * 8 + (hillMeters / 100) * 4));
-  const hike = opts.powerHike !== false;
+export function timeOnFeet(targetMin, vertM, plan, opts = {}) {
+  const hours = round(targetMin / 60, 1);
+  const night = Boolean(opts.night);
+
+  // Die Einheit wächst über die Vorbereitung von unter einer Stunde auf über
+  // vier. Struktur und Sprache passen sich mit: Verpflegung wird erst ab
+  // anderthalb Stunden geübt, vorher gibt es dafür keinen Anlass.
+  const einlauf = Math.min(20, Math.round(targetMin * 0.2));
+  const schluss = targetMin >= 90 ? 20 : 10;
+  const haupt = Math.max(15, targetMin - einlauf - schluss);
+
+  const blocks = [
+    {
+      label: 'Einlaufen',
+      detail: `${einlauf} min bewusst zu langsam. Im Rennen ist der zu schnelle Start der Unterschied zwischen Stunde 15 und dem Ausstieg.`,
+      zone: 1,
+      minutes: einlauf,
+    },
+    {
+      label: 'Hauptteil',
+      detail: `${haupt} min in ${zoneRange(2)}${vertM ? `, dabei rund ${vertM} hm sammeln` : ''}. Jeden Anstieg über 50 hm konsequent gehen – Power-Hiking ist die Renngeschwindigkeit, nicht die Notlösung.`,
+      zone: 2,
+      minutes: haupt,
+    },
+  ];
+
+  if (targetMin >= 90) {
+    blocks.push({
+      label: 'Verpflegung',
+      detail: `${plan.carbsPerHour[0]}–${plan.carbsPerHour[1]} g Kohlenhydrate und ${plan.fluidPerHour[0]}–${plan.fluidPerHour[1]} ml pro Stunde, dazu ${plan.sodiumPerHour[0]}–${plan.sodiumPerHour[1]} mg Natrium. Genau die Produkte nehmen, die du im Rennen nehmen willst – der Magen muss trainiert werden wie die Beine.`,
+    });
+  }
+
+  blocks.push({
+    label: `Letzte ${schluss} min`,
+    detail: 'Auf müden Beinen sauber laufen. Hier entscheidet sich die Technik der letzten Rennstunden.',
+    zone: 2,
+    minutes: schluss,
+  });
+
+  if (night) {
+    blocks.unshift({
+      label: 'Nachtlauf',
+      detail: 'Start zwischen 22:00 und 23:00, mit der Stirnlampe, die du im Rennen trägst. Der Zugspitz Ultratrail startet um 23:00 – die ersten sechs bis sieben Stunden läufst du im Dunkeln.',
+    });
+  }
 
   return {
-    slot: 'intensiv',
+    slot: 'long',
     kind: 'run',
     hard: true,
-    title: 'Bergwiederholungen',
-    subtitle: `${reps} × ${hillMeters} hm · ${actual} hm gesamt`,
-    focus: 'Höhenmeter, Power-Hiking, Bergab-Gewöhnung',
-    durationMin: minutes,
-    primaryZone: 3,
-    vertM: actual,
-    blocks: [
-      warmup(12),
-      {
-        label: `${reps} × Anstieg`,
-        detail: hike
-          ? `${hillMeters} hm am Stück. Die ersten Wiederholungen laufen, ab der Hälfte bewusst Power-Hiking üben: kurze Schritte, Hände auf den Oberschenkeln, Blick nach vorn. Im Rennen wirst du den Großteil der 4295 hm gehen, nicht laufen.`
-          : `${hillMeters} hm am Stück, durchgehend laufen in ${zoneRange(3)}`,
-        zone: 3,
-        minutes: Math.round(reps * (hillMeters / 100) * 8),
-      },
-      {
-        label: 'Abstiege',
-        detail: 'Locker und kontrolliert herunter, kurze Schritte, hohe Frequenz. Der Abstieg ist hier Erholung – und gleichzeitig die Gewöhnung, die im Rennen zählt.',
-        zone: 2,
-        minutes: Math.round(reps * (hillMeters / 100) * 4),
-      },
-      cooldown(12),
-    ],
-    coachNote: 'Die Herzfrequenz darf im Anstieg hoch gehen, muss aber nicht. Entscheidend ist, dass du oben nicht am Limit stehst – im Rennen kommen 4295 hm, nicht 700.',
-    load: Math.round(minutes * 1.4),
+    title: night ? 'Nacht-Longrun' : targetMin >= 150 ? 'Time on Feet' : 'Lange Einheit',
+    subtitle: `${hours} h${vertM ? ` · ${vertM} hm` : ''} · ${zoneLabel(2)}`,
+    focus: night ? 'Rennsimulation bei Dunkelheit' : 'Dauerbelastung, Verpflegung, Power-Hiking',
+    durationMin: targetMin,
+    primaryZone: 2,
+    vertM,
+    blocks,
+    coachNote: night
+      ? 'Nachts läuft man langsamer, isst weniger und unterschätzt die Kälte. Genau deshalb wird das vorher geprobt – du kennst Nachtschichten, aber nicht Laufen um drei Uhr morgens.'
+      : targetMin >= 90
+        ? 'Wenn dir ab Stunde drei schlecht wird, lag es fast immer an zu wenig Flüssigkeit oder zu viel Zucker auf einmal. Notiere, was du wann gegessen hast.'
+        : 'Noch kurz, aber schon die Einheit, aus der später vier Stunden werden. Gelände statt flacher Runde, Anstiege gehen statt laufen.',
+    load: Math.round(targetMin * 1.1),
   };
 }
 
@@ -225,106 +262,6 @@ export function downhillSession(reps, hillMeters) {
     ],
     coachNote: 'Der Muskelkater kommt zwei Tage später und fällt beim ersten Mal heftig aus. Genau deshalb fängt diese Einheit Monate vor dem Rennen an und steigert sich in kleinen Schritten – nicht drei Wochen vorher.',
     load: Math.round(minutes * 1.5),
-  };
-}
-
-export function longRun(w, targetMin, paceMinPerKm, vertM = 0) {
-  const strides = w % 4 === 2;
-  const km = paceMinPerKm ? round(targetMin / paceMinPerKm, 1) : null;
-  const blocks = [
-    { label: 'Start', detail: 'Erste 15 min bewusst langsam, Zone 1 bis untere Zone 2', zone: 1, minutes: 15 },
-    {
-      label: 'Hauptteil',
-      detail: vertM
-        ? `${targetMin - 20} min gleichmäßig in ${zoneRange(2)}, dabei rund ${vertM} hm sammeln – welliges Profil suchen statt flacher Runde.`
-        : `${targetMin - 20} min gleichmäßig in ${zoneRange(2)}`,
-      zone: 2,
-      minutes: targetMin - 20,
-    },
-    { label: 'Ausklang', detail: '5 min locker austraben', zone: 1, minutes: 5 },
-  ];
-  if (strides) {
-    blocks.splice(2, 0, {
-      label: 'Steigerungen',
-      detail: '4 × 20 s zügig, volle Pause – hält die Spannkraft im langen Lauf',
-      zone: 4,
-      minutes: 5,
-    });
-  }
-  return {
-    slot: 'long',
-    kind: 'run',
-    hard: true,
-    vertM,
-    title: 'Longrun',
-    subtitle: `${targetMin} min${km ? ` · ca. ${km} km` : ''}${vertM ? ` · ${vertM} hm` : ''} · ${zoneLabel(2)}`,
-    focus: 'Aerobe Basis, Kapillarisierung, Fettstoffwechsel',
-    durationMin: targetMin + (strides ? 5 : 0),
-    primaryZone: 2,
-    blocks,
-    coachNote: 'Wenn die Herzfrequenz im letzten Drittel bei gleichem Tempo davonläuft, war der Einstieg zu schnell oder der Schlaf zu kurz. Beides notieren.',
-    load: Math.round(targetMin * LOAD_FACTOR.long),
-  };
-}
-
-/**
- * Lange Einheit mit Ziel: Time on Feet statt Kilometer.
- *
- * Bei einem Rennen über 19 bis 22 Stunden zählt nicht, wie schnell du eine
- * Distanz läufst, sondern wie lange du dich bewegen kannst, ohne dass Magen,
- * Kopf oder Beine aufgeben. Deshalb wird hier in Stunden gerechnet, gegessen
- * wie im Rennen und der Anstieg gegangen statt gelaufen.
- */
-export function timeOnFeet(targetMin, vertM, plan, opts = {}) {
-  const hours = round(targetMin / 60, 1);
-  const night = Boolean(opts.night);
-  const blocks = [
-    {
-      label: 'Erste Stunde',
-      detail: 'Bewusst zu langsam starten. Im Rennen ist das der Unterschied zwischen Stunde 15 und dem Ausstieg.',
-      zone: 1,
-      minutes: 60,
-    },
-    {
-      label: 'Hauptteil',
-      detail: `${Math.max(30, targetMin - 90)} min in ${zoneRange(2)}${vertM ? `, dabei rund ${vertM} hm sammeln` : ''}. Jeden Anstieg über 50 hm konsequent gehen – Power-Hiking ist die Renngeschwindigkeit, nicht die Notlösung.`,
-      zone: 2,
-      minutes: Math.max(30, targetMin - 90),
-    },
-    {
-      label: 'Verpflegung',
-      detail: `${plan.carbsPerHour[0]}–${plan.carbsPerHour[1]} g Kohlenhydrate und ${plan.fluidPerHour[0]}–${plan.fluidPerHour[1]} ml pro Stunde, dazu ${plan.sodiumPerHour[0]}–${plan.sodiumPerHour[1]} mg Natrium. Genau die Produkte nehmen, die du im Rennen nehmen willst – der Magen muss trainiert werden wie die Beine.`,
-    },
-    {
-      label: 'Letzte 30 min',
-      detail: 'Auf müden Beinen sauber laufen. Hier entscheidet sich die Technik der letzten Rennstunden.',
-      zone: 2,
-      minutes: 30,
-    },
-  ];
-
-  if (night) {
-    blocks.unshift({
-      label: 'Nachtlauf',
-      detail: 'Start zwischen 22:00 und 23:00, mit der Stirnlampe, die du im Rennen trägst. Der Zugspitz Ultratrail startet um 23:00 – die ersten sechs bis sieben Stunden läufst du im Dunkeln.',
-    });
-  }
-
-  return {
-    slot: 'long',
-    kind: 'run',
-    hard: true,
-    title: night ? 'Nacht-Longrun' : 'Time on Feet',
-    subtitle: `${hours} h${vertM ? ` · ${vertM} hm` : ''} · ${zoneLabel(2)}`,
-    focus: night ? 'Rennsimulation bei Dunkelheit' : 'Dauerbelastung, Verpflegung, Power-Hiking',
-    durationMin: targetMin,
-    primaryZone: 2,
-    vertM,
-    blocks,
-    coachNote: night
-      ? 'Nachts läuft man langsamer, isst weniger und unterschätzt die Kälte. Genau deshalb wird das vorher geprobt – du kennst Nachtschichten, aber nicht Laufen um drei Uhr morgens.'
-      : 'Wenn dir ab Stunde drei schlecht wird, lag es fast immer an zu wenig Flüssigkeit oder zu viel Zucker auf einmal. Notiere, was du wann gegessen hast.',
-    load: Math.round(targetMin * 1.1),
   };
 }
 
@@ -380,28 +317,21 @@ export function easyRun(w, targetMin, paceMinPerKm, vertM = 0) {
 const STRENGTH_TEMPLATES = {
   kraft_a: {
     title: 'Kraft A · Unterkörper',
-    focus: 'Schwerer Beintag',
+    focus: 'Bergab-Kraft',
     hard: true,
-    note: 'Schwere Beinarbeit hält der Plan mindestens einen Tag von harten Läufen fern. Was du machst und mit welchem Gewicht, entscheidest du.',
-    // Mit Bergziel bekommt derselbe Termin einen anderen Schwerpunkt.
-    raceFocus: 'Bergab-Kraft',
-    raceNote: 'Bei 4295 Höhenmetern bergab entscheidet die Belastbarkeit des Quadrizeps über die letzten 25 Kilometer. Der Schwerpunkt liegt auf dem Nachgeben unter Last – was du dafür machst, entscheidest du.',
+    note: 'Bei 4295 Höhenmetern bergab entscheidet die Belastbarkeit des Quadrizeps über die letzten 25 Kilometer. Der Schwerpunkt liegt auf dem Nachgeben unter Last – was du dafür machst, entscheidest du.',
   },
   kraft_b: {
     title: 'Kraft B · Oberkörper',
-    focus: 'Druck und Zug',
+    focus: 'Rumpf, Rücken, Stöcke',
     hard: false,
-    note: 'Die verträglichste Einheit der Woche – sie belastet die Beine nicht und darf deshalb auch neben einem Lauftag stehen.',
-    raceFocus: 'Rumpf, Rücken, Stöcke',
-    raceNote: 'Rücken und Schultern tragen im Rennen den Rucksack über 19 Stunden, und wer mit Stöcken steigt, braucht dafür Zugkraft. Belastet die Beine nicht und darf deshalb auch neben einem Lauftag stehen.',
+    note: 'Rücken und Schultern tragen im Rennen den Rucksack über 19 Stunden, und wer mit Stöcken steigt, braucht dafür Zugkraft. Belastet die Beine nicht und darf deshalb auch neben einem Lauftag stehen.',
   },
   kraft_c: {
     title: 'Kraft C · Athletik',
-    focus: 'Explosivkraft, Rumpf, Einbeiniges',
+    focus: 'Einbeinig, Sprunggelenk, Rumpf',
     hard: false,
-    note: 'Athletik und Sprünge liegen an einem Tag mit frischem Nervensystem, nicht im Anschluss an einen harten Reiz.',
-    raceFocus: 'Einbeinig, Sprunggelenk, Rumpf',
-    raceNote: 'Auf technischem Gelände steht man tausendfach kurz auf einem Bein. Sprunggelenk und Hüftstabilität entscheiden dort über Umknicken und über die Ökonomie in den späten Stunden.',
+    note: 'Auf technischem Gelände steht man tausendfach kurz auf einem Bein. Sprunggelenk und Hüftstabilität entscheiden dort über Umknicken und über die Ökonomie in den späten Stunden.',
   },
 };
 
@@ -414,10 +344,10 @@ const STRENGTH_TEMPLATES = {
 // als der Longrun. Was es wirklich war, korrigiert deine Angabe beim Abhaken.
 const STRENGTH_NOMINAL_MIN = 60;
 
-export function strengthSession(slot, w, minutesAvailable, forRace = false) {
+export function strengthSession(slot, w, minutesAvailable) {
   const tpl = STRENGTH_TEMPLATES[slot];
   const minutes = Math.max(30, Math.round(Math.min(minutesAvailable, 90) / 5) * 5);
-  const focus = forRace ? tpl.raceFocus : tpl.focus;
+  const focus = tpl.focus;
 
   return {
     slot,
@@ -429,7 +359,7 @@ export function strengthSession(slot, w, minutesAvailable, forRace = false) {
     durationMin: minutes,
     durationCaption: 'Minuten Zeit',
     blocks: [],
-    coachNote: forRace ? tpl.raceNote : tpl.note,
+    coachNote: tpl.note,
     load: Math.round(STRENGTH_NOMINAL_MIN * LOAD_FACTOR[slot]),
   };
 }

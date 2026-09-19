@@ -1,6 +1,7 @@
 // Zustand der App. Alles liegt lokal im Browser – kein Server, kein Konto.
 
 import { DEFAULT_CYCLE } from './shift.js';
+import { DEFAULT_RACE } from './race.js';
 import { defaultHabits } from './tasks.js';
 import { today, weekStart } from './util.js';
 
@@ -29,7 +30,7 @@ export function defaultState() {
       gymTravelMinutes: 20,    // einfache Fahrt, zählt bei Krafteinheiten doppelt
       hillMeters: 120,         // Höhenmeter je Anstieg in der Umgebung
       startVertM: 200,         // Höhenmeter, die du heute in einer Woche schaffst
-      race: null,              // Zielrennen, siehe core/race.js
+      race: { ...DEFAULT_RACE }, // Zielrennen – der Coach ist ausschließlich darauf ausgelegt
       easyPace: 6.4, // min/km, nur für die km-Schätzung
       theme: 'dark',
     },
@@ -68,6 +69,8 @@ function migrate(saved) {
     ui: { ...base.ui, ...saved.ui },
   };
   if (!Array.isArray(merged.tasks) || !merged.tasks.length) merged.tasks = defaultHabits();
+  // Der Plan rechnet immer vom Renntag rückwärts – ohne Ziel gäbe es keinen Plan.
+  if (!merged.settings.race || !merged.settings.race.date) merged.settings.race = { ...DEFAULT_RACE };
   return merged;
 }
 

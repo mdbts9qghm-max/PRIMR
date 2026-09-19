@@ -13,7 +13,6 @@ export const MARKERS = [
     unit: 'hm/h',
     better: 'up',
     color: 'var(--accent)',
-    raceOnly: true,
     why: 'Wie viele Höhenmeter du pro Stunde im Renntempo steigst – gemessen in den Bergwiederholungen. Im Gelände sagt eine Pace nichts aus, diese Zahl schon. Sie ist der direkteste Gradmesser dafür, ob du im Zeitlimit ankommst.',
     target: (race, helpers) => ({
       value: helpers.vertRateTarget(race),
@@ -26,7 +25,6 @@ export const MARKERS = [
     unit: '%',
     better: 'down',
     color: 'var(--shift-n)',
-    raceOnly: true,
     why: 'Um wie viel deine Herzfrequenz in der zweiten Hälfte einer langen Einheit steigt, obwohl das Tempo gleich bleibt. Unter 5 % heißt: Die Grundlage trägt. Über 10 % heißt: zu schnell gestartet, zu wenig getrunken oder die Distanz ist noch zu lang für den jetzigen Stand.',
     target: () => ({ value: 5, text: 'Unter 5 % ist das Ziel. Über 10 % ist ein Warnsignal.' }),
   },
@@ -109,8 +107,8 @@ export function render(ctx) {
   }
 
   const race = s.settings.race;
-  const cards = MARKERS.filter((m) => !m.raceOnly || race).map((m) => {
-    const target = race && m.target ? m.target(race, {
+  const cards = MARKERS.map((m) => {
+    const target = m.target ? m.target(race, {
       vertRateTarget,
       targetHours: racePlan(race).targetHours,
     }) : null;

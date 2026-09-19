@@ -7,7 +7,7 @@ import { sessionCard, dayRow, weekStrip, weekStripLegend, phaseBar } from '../ui
 import { PHASES, countdown, weeksUntil, zoneTargets } from '../core/race.js';
 import { addDays, weekStart, shortDate, weekdayShort, round, durationLabel, longDate } from '../core/util.js';
 import { weekPlan, rollingDays } from '../core/context.js';
-import { progression } from '../core/plan.js';
+import { progression, raceContext } from '../core/plan.js';
 import { ZONES } from '../core/zones.js';
 
 function zoneMinutes(entries) {
@@ -58,7 +58,8 @@ export function render(ctx) {
   const rollingRuns = rollingSessions.filter((x) => x.kind === 'run').length;
   const rollingStrength = rollingSessions.filter((x) => x.kind === 'strength').length;
 
-  const next = progression(plan.weekIndex + 1, ctx.state.settings);
+  const nextMonday = addDays(monday, 7);
+  const next = progression(plan.weekIndex + 1, ctx.state.settings, raceContext(ctx.state.settings, nextMonday));
   const bars = loadBars(ctx);
   const acwrTone = ctx.load.ratio == null ? 'muted'
     : ctx.load.ratio > 1.45 ? 'tone-bad'
@@ -66,9 +67,9 @@ export function render(ctx) {
         : ctx.load.ratio < 0.8 ? 'tone-warn' : 'tone-good';
 
   const rc = plan.race;
-  const race = ctx.state.settings.race;
-  const cd = race ? countdown(race, ctx.date) : null;
-  const startWeeksOut = race ? weeksUntil(race.date, ctx.state.settings.planStart) : 0;
+  const race = rc.race;
+  const cd = countdown(race, ctx.date);
+  const startWeeksOut = weeksUntil(race.date, ctx.state.settings.planStart);
 
   return `
   <div class="view">
@@ -82,7 +83,6 @@ export function render(ctx) {
       </p>
     </div>` : ''}
 
-    ${race ? `
     <div class="card card--accent">
       <div class="row row--between" style="align-items:flex-start">
         <div class="grow" style="min-width:0">
@@ -92,10 +92,10 @@ export function render(ctx) {
         </div>
         <div style="text-align:right;flex:none">
           <div class="goal-figure" style="justify-content:flex-end">
-            <span class="goal-figure__value">${cd.past ? '–' : Math.max(0, rc ? rc.weeksOut : cd.weeks)}</span>
+            <span class="goal-figure__value">${cd.past ? '–' : Math.max(0, rc.weeksOut)}</span>
           </div>
           <div class="tiny muted">${cd.past ? 'gelaufen'
-            : (rc ? rc.weeksOut : cd.weeks) === 1 ? 'Woche vorher' : 'Wochen vorher'}</div>
+            : rc.weeksOut === 1 ? 'Woche vorher' : 'Wochen vorher'}</div>
           ${offset !== 0 && !cd.past ? `<div class="tiny muted" style="margin-top:2px">heute: ${esc(cd.text)}</div>` : ''}
         </div>
       </div>
@@ -106,7 +106,7 @@ export function render(ctx) {
         <span class="chip">Limit ${race.limitHours} h</span>
       </div>
 
-      ${rc ? `<div style="margin-top:16px">${phaseBar(PHASES, rc.weeksOut, startWeeksOut)}</div>
+      <div style="margin-top:16px">${phaseBar(PHASES, rc.weeksOut, startWeeksOut)}</div>
       <div class="note" style="margin-top:14px">${esc(rc.phase.detail)}</div>
 
       <div class="metric-grid" style="margin-top:12px">
@@ -130,18 +130,10 @@ export function render(ctx) {
         ${rc.backToBackWeek ? '<span class="chip chip--on">Doppeltag diese Woche</span>' : ''}
         ${rc.downhillWeek ? '<span class="chip chip--on">Bergab-Einheit</span>' : ''}
         ${rc.nightWeek ? '<span class="chip chip--on">Nachtlauf</span>' : ''}
-      </div>` : ''}
+      </div>
 
       <button class="btn btn--block" style="margin-top:14px" data-action="open-raceplan">Rennplan ansehen</button>
-    </div>` : `
-    <div class="card">
-      <div class="section-label">Kein Ziel hinterlegt</div>
-      <p class="small secondary" style="margin-top:8px">
-        Ohne Zielrennen läuft der Plan endlos in Vierwochenblöcken weiter. Mit Ziel rechnet er
-        vom Renntag rückwärts und wird zum Termin hin spezifischer.
-      </p>
-      <button class="btn btn--primary btn--block" style="margin-top:12px" data-action="open-settings">Ziel eintragen</button>
-    </div>`}
+    </div>
 
     <div class="card">
       <div class="row row--between">

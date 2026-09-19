@@ -112,8 +112,12 @@ du stehst und ab wann wieder normal geplant wird.
 
 ## Zielrennen
 
-Ohne Ziel läuft der Plan endlos in Vierwochenblöcken weiter. Mit einem Ziel
-(*Einstellungen → Zielrennen*) rechnet er vom Renntag rückwärts:
+Der Coach ist auf genau ein Rennen ausgelegt: den **Zugspitz Ultratrail 100K
+(86 km, 4295 hm+, Start 18.06.2027 um 23:00 in Ehrwald, Limit 22 Stunden)**.
+Einen zielfreien Plan gibt es nicht – Umfang, Höhenmeter, Steigrate und Inhalte
+kommen alle aus diesen Zahlen. Unter *Einstellungen → Zielrennen* lassen sie
+sich ändern, wenn sich das Rennen ändert; der Plan rechnet dann vom neuen
+Renntag rückwärts:
 
 | Phase | Wochen vorher | Was passiert |
 |---|---|---|
@@ -147,13 +151,39 @@ Als stärkste Woche dient rund 55 % der Renn-Höhenmeter. Sie entstehen aus
 Wiederholungen am längsten erreichbaren Anstieg (*Einstellungen → Gelände*).
 Das Wochenbudget wird an einer Stelle verteilt: Zuerst wird abgezogen, was
 feststeht – eine Bergab-Einheit, wenn sie ansteht –, dann bekommt die
-Bergeinheit ihren Anteil, sofern drei Wiederholungen zusammenkommen, und der
-Rest verteilt sich auf die langen und lockeren Läufe.
+Bergeinheit ihren Anteil, und der Rest verteilt sich auf die langen und
+lockeren Läufe. Reicht der Anteil der Bergeinheit nicht für Wiederholungen,
+wird daraus ein Berg-Dauerlauf auf welligem Profil; die Höhenmeter bleiben
+dieselben.
+
+### Alles Harte findet am Anstieg statt
+
+Es gibt keine Bahn- und keine Straßeneinheit mehr. Die intensive Einheit der
+Woche ist immer eine Bergeinheit, sie wechselt nur die Form:
+
+| Form | Zone | Wofür |
+|---|---|---|
+| Berg-Intervalle | 4 | Aerobe Obergrenze am Anstieg |
+| Berg-Schwelle | 3 | Dauerleistung am Anstieg |
+| Power-Hiking-Block | 3 | Die Renngeschwindigkeit am Anstieg – bei 4295 hm wird der Großteil gegangen |
+| Berg-Dauerlauf | 2 | Höhenmeter im Grundlagentempo, wenn das Budget keine Wiederholungen hergibt |
+
+Reicht das Wochenbudget nicht für den längsten erreichbaren Anstieg, wird nicht
+die Einheit gestrichen, sondern die Wiederholung kürzer genommen – 60 hm am
+Stück sind eine vollwertige Wiederholung. Erst unter 40 hm lohnt keine mehr;
+dann sammelt ein Dauerlauf auf welligem Profil die Höhenmeter ein. In der
+Praxis heißt das: die ersten vier Wochen laufen komplett in Zone 2, danach
+läuft die Rotation durch.
+
+Auch die lange Einheit ist keine Straßenrunde: Sie rechnet von Anfang an in
+Stunden statt Kilometern und sammelt ihren Anteil am Höhenmeterbudget. Nur der
+lockere Lauf bleibt ein lockerer Lauf – und trägt in der Aufbau- und
+Spezifischen Phase die Bergab-Einheit.
 
 ### Die vier ultraspezifischen Inhalte
 
-- **Höhenmeter** als eigene Einheit, sobald das Wochenziel drei Wiederholungen hergibt
-- **Time on Feet** statt Kilometer, sobald die lange Einheit zwei Stunden überschreitet
+- **Höhenmeter** als eigene Einheit in jeder Woche der Vorbereitung
+- **Time on Feet** statt Kilometer – die lange Einheit rechnet von der ersten Woche an in Stunden und wächst von unter einer auf über vier
 - **Bergab-Belastungstoleranz** ab der Aufbauphase, alle zwei Wochen, mit langsam wachsender Wiederholungszahl. Die exzentrische Belastung im Quadrizeps ist der häufigste Grund für einen Abbruch bei dieser Distanz und der einzige Reiz, den man nicht kurzfristig nachholen kann.
 - **Verpflegungsstrategie**, geübt in jeder langen Einheit ab der Aufbauphase, mit den Mengen des Rennplans
 
@@ -163,22 +193,22 @@ am Stück zu laufen) und **Nachtläufe**, weil der Start um 23:00 Uhr liegt.
 
 ### Woran der Coach sich ausrichtet
 
-Mit Ziel ändern sich nicht nur die Einheiten, sondern auch die Maßstäbe:
+Aus dem Rennen ergeben sich nicht nur die Einheiten, sondern auch die Maßstäbe:
 
 - **Intensitätsverteilung.** Ein Rennen über 19 Stunden läuft fast vollständig
   in Zone 1 und 2. Der Plan zielt deshalb auf 85–88 % locker, 10–13 % Schwelle
   und höchstens 3 % hart; die Zonenkarte vergleicht die geplante Woche direkt
-  damit. **Zone 5 kommt mit Bergziel nicht mehr vor** – die Erholung, die eine
-  solche Einheit kostet, fehlt danach bei der langen Einheit.
+  damit. **Zone 5 kommt nicht vor** – die Erholung, die eine solche Einheit
+  kostet, fehlt danach bei der langen Einheit.
 - **Steigrate statt Pace.** Aus 4295 hm und der angepeilten Zeit ergibt sich,
   wie viele Höhenmeter pro Stunde im Anstieg nötig sind. Diese Zahl lässt sich in
   den Bergwiederholungen direkt messen; eine Pace sagt im Gelände nichts.
 - **Messgrößen.** Steigrate und HF-Drift im Longrun stehen im Werte-Tab ganz
   oben, VO2max bewusst weiter unten: Für diese Distanz entscheidet nicht die
   Obergrenze, sondern wie lange man darunter durchhält.
-- **Kraft-Schwerpunkte.** Die Termine bleiben, die Ausrichtung wechselt:
-  Bergab-Kraft statt schwerer Beintag, Rumpf und Zugkraft für Rucksack und
-  Stöcke, Sprunggelenk und Einbeiniges für technisches Gelände. Übungen und
+- **Kraft-Schwerpunkte.** Die Termine bleiben, die Ausrichtung kommt aus dem
+  Rennen: Bergab-Kraft statt schwerer Beintag, Rumpf und Zugkraft für Rucksack
+  und Stöcke, Sprunggelenk und Einbeiniges für technisches Gelände. Übungen und
   Gewichte bleiben weiterhin deine Sache.
 - **Schlüsseleinheiten werden verschoben, nicht gekürzt.** Reicht die
   Bereitschaft an einem Tag mit langer oder intensiver Einheit nicht, schlägt

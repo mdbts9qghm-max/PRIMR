@@ -5,13 +5,15 @@ import assert from 'node:assert/strict';
 import { shiftDay, DEFAULT_CYCLE, trainingWindow, typeFor } from '../js/core/shift.js';
 import { sleepPlan, sleepTargetHours, caffeineCutoff, screensOff } from '../js/core/sleep.js';
 import {
-  planWeek, progression, weekIndex, loadBalance, illnessRamp, applyDirective, MAX_RAMP_DAYS,
+  planWeek, progression, raceContext, weekIndex, loadBalance, illnessRamp, applyDirective,
+  MAX_RAMP_DAYS,
 } from '../js/core/plan.js';
 import {
   phaseFor, volumePlan, vertTarget, phaseVert, features, MAX_WEEKLY_GROWTH,
   zoneTargets, vertRateTarget, terrainSplit, racePlan as racePlanFn, weeksUntil as weeksUntilFn,
+  DEFAULT_RACE,
 } from '../js/core/race.js';
-import { HARD_SLOTS } from '../js/core/library.js';
+import { HARD_SLOTS, HILL_FORMS } from '../js/core/library.js';
 import { KIND_LABEL } from '../js/ui/components.js';
 import { readiness, baselines, trainingDirective, BANDS } from '../js/core/readiness.js';
 import { defaultHabits, dueOn, createTask } from '../js/core/tasks.js';
@@ -431,8 +433,35 @@ test('Die spezifische Phase enthält alle vier Ultra-Inhalte', () => {
       [d.session, d.extra].filter(Boolean).forEach((x) => titles.add(x.title));
     });
   }
-  ['Time on Feet', 'Bergwiederholungen', 'Bergab-Toleranz', 'Zweiter langer Tag', 'Nacht-Longrun']
+  ['Time on Feet', 'Bergab-Toleranz', 'Zweiter langer Tag', 'Nacht-Longrun']
     .forEach((t) => assert.ok(titles.has(t), `"${t}" kommt nie vor`));
+  assert.ok(HILL_FORMS.some((f) => titles.has(f.title)), 'keine einzige Bergeinheit');
+});
+
+test('Jede harte Laufeinheit findet am Anstieg statt', () => {
+  const hillTitles = new Set(HILL_FORMS.map((f) => f.title));
+  for (let t = 0; t <= 43; t += 1) {
+    racePlanFor(t).days.forEach((d) => {
+      const x = d.session;
+      if (x.slot !== 'intensiv') return;
+      assert.ok(hillTitles.has(x.title), `Woche ${t}: "${x.title}" ist keine Bergeinheit`);
+      assert.ok(x.vertM > 0, `Woche ${t}: "${x.title}" ohne Höhenmeter`);
+    });
+  }
+});
+
+test('Keine Einheit ist reines Flachland-Training', () => {
+  // Der Coach ist auf ein Rennen mit 4295 hm ausgelegt. Außerhalb von
+  // Regeneration und Rennwoche trägt jede Laufeinheit Höhenmeter – die
+  // lockere Ausnahme darf kurz sein, aber nicht die Regel.
+  for (let t = 0; t <= 36; t += 1) {
+    const runs = racePlanFor(t).days
+      .flatMap((d) => [d.session, d.extra].filter(Boolean))
+      .filter((x) => x.kind === 'run');
+    if (!runs.length) continue;
+    const flat = runs.filter((x) => !x.vertM);
+    assert.ok(flat.length <= 1, `Woche ${t}: ${flat.length} Einheiten ohne Höhenmeter`);
+  }
 });
 
 test('Der zweite lange Tag steht immer direkt nach dem Longrun', () => {
@@ -520,18 +549,19 @@ test('Die Steigrate ergibt sich aus Höhenmetern und Zeitlimit', () => {
   assert.ok(split.climbHours + split.descentHours + split.flatHours <= racePlanFn(RACE).targetHours + 0.2);
 });
 
-test('Krafteinheiten bekommen mit Bergziel den passenden Schwerpunkt', () => {
-  const mit = racePlanFor(20).days.map((d) => d.session).find((x) => x.slot === 'kraft_a');
-  assert.equal(mit.focus, 'Bergab-Kraft');
-  const ohne = planWeek('2026-09-14', CONFIG, SETTINGS).days.map((d) => d.session).find((x) => x.slot === 'kraft_a');
-  assert.equal(ohne.focus, 'Schwerer Beintag');
+test('Krafteinheiten tragen den Schwerpunkt des Bergziels', () => {
+  const a = racePlanFor(20).days.map((d) => d.session).find((x) => x.slot === 'kraft_a');
+  assert.equal(a.focus, 'Bergab-Kraft');
 });
 
-test('Ohne Ziel bleibt der Plan unverändert endlos', () => {
-  const ohne = planWeek('2026-09-14', CONFIG, SETTINGS);
-  assert.equal(ohne.race, null);
-  assert.equal(ohne.plannedVert, 0);
-  assert.equal(ohne.runs, 3);
+test('Ohne eingetragenes Ziel plant der Coach trotzdem auf das Rennen', () => {
+  // Es gibt keinen zielfreien Plan mehr: Fehlt das Rennen – etwa nach einer
+  // alten Sicherung – greift das hinterlegte Standardrennen.
+  const plan = planWeek('2026-09-14', CONFIG, SETTINGS);
+  assert.ok(plan.race, 'kein Rennkontext');
+  assert.equal(plan.race.race.name, DEFAULT_RACE.name);
+  assert.ok(plan.plannedVert > 0, 'Woche ohne Höhenmeter');
+  assert.equal(plan.runs, 3);
 });
 
 test('Der Rennplan rechnet Flachäquivalent und Verpflegung aus', () => {
@@ -605,19 +635,33 @@ test('Die Wochenziele bleiben an der Kalenderwoche hängen', () => {
 
 /* ---------- Progression ---------- */
 
+// Die Progression rechnet immer im Rennkontext der jeweiligen Woche.
+function progressionFor(w) {
+  return progression(w, SETTINGS, raceContext(SETTINGS, addDays(SETTINGS.planStart, w * 7)));
+}
+
 test('Vierwochenblock steigt dreimal und entlastet einmal', () => {
-  const p = [0, 1, 2, 3].map((i) => progression(i, SETTINGS).weeklyRunMinutes);
+  const p = [0, 1, 2, 3].map((i) => progressionFor(i).weeklyRunMinutes);
   assert.ok(p[1] > p[0] && p[2] > p[1] && p[3] < p[0]);
-  assert.equal(progression(3, SETTINGS).deload, true);
+  assert.equal(progressionFor(3).deload, true);
 });
 
 test('Jeder neue Block startet über dem vorherigen', () => {
-  assert.ok(progression(4, SETTINGS).weeklyRunMinutes > progression(0, SETTINGS).weeklyRunMinutes);
-  assert.ok(progression(8, SETTINGS).weeklyRunMinutes > progression(4, SETTINGS).weeklyRunMinutes);
+  assert.ok(progressionFor(4).weeklyRunMinutes > progressionFor(0).weeklyRunMinutes);
+  assert.ok(progressionFor(8).weeklyRunMinutes > progressionFor(4).weeklyRunMinutes);
 });
 
-test('Umfang ist nach oben gedeckelt', () => {
-  assert.ok(progression(400, SETTINGS).weeklyRunMinutes <= SETTINGS.startRunMinutes * 2.6 * 1.2 + 1);
+test('Umfang ist durch den Spitzenumfang des Rennens gedeckelt', () => {
+  // Die Obergrenze kommt nicht mehr aus einem Vielfachen des Startumfangs,
+  // sondern aus der erwarteten Rennzeit: Die stärkste Woche liegt bei rund
+  // der halben Zielzeit. Der Blockfaktor darf sie um 20 % überschreiten.
+  const peak = volumePlan(DEFAULT_RACE, SETTINGS.startRunMinutes, 60).peakMinutes;
+  for (let w = 0; w <= 80; w += 1) {
+    assert.ok(
+      progressionFor(w).weeklyRunMinutes <= peak * 1.2 + 1,
+      `Woche ${w}: ${progressionFor(w).weeklyRunMinutes} min über ${Math.round(peak * 1.2)} min`,
+    );
+  }
 });
 
 test('Zonenangaben in den Untertiteln bleiben lesbar', () => {

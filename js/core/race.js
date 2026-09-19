@@ -1,8 +1,10 @@
 // Zielrennen: Periodisierung, Höhenmeter, Renn- und Verpflegungsplan.
 //
-// Ohne Ziel läuft der Plan endlos in Vierwochenblöcken weiter. Mit Ziel
-// rechnet er vom Renntag rückwärts: Je näher der Termin, desto spezifischer
-// wird das Training, und die letzten Wochen nehmen den Umfang gezielt zurück.
+// Der Coach ist auf genau ein Rennen ausgelegt und rechnet vom Renntag
+// rückwärts: Je näher der Termin, desto spezifischer wird das Training, und
+// die letzten Wochen nehmen den Umfang gezielt zurück. Distanz, Höhenmeter
+// und Zeitlimit des Rennens bestimmen Umfang, Steigrate und Inhalte – einen
+// zielfreien Plan gibt es nicht.
 
 import { weekStart, daysBetween, addDays, clamp, round } from './util.js';
 

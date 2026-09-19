@@ -188,8 +188,7 @@ export function markerSheet(ctx) {
           <label class="field__label" for="f-date">Datum</label>
           <input id="f-date" name="date" type="date" value="${esc(ctx.date)}">
         </div>
-        ${MARKERS.filter((m) => !m.raceOnly || s2.race)
-          .map((m) => numField(m.key, `${m.label} (${m.unit})`, m.why, null, 'step="0.1"')).join('')}
+        ${MARKERS.map((m) => numField(m.key, `${m.label} (${m.unit})`, m.why, null, 'step="0.1"')).join('')}
       </div>
       <button class="btn btn--primary btn--block" type="submit" data-action="save-marker">Speichern</button>
     </form>
@@ -427,32 +426,29 @@ export function settingsSheet(ctx) {
       <div class="card stack">
         <div class="row row--between">
           <span class="section-label">Zielrennen</span>
-          ${s.race ? `<button type="button" class="btn btn--sm btn--ghost" data-action="clear-race">Entfernen</button>` : ''}
+          <button type="button" class="btn btn--sm btn--ghost" data-action="prefill-race">Zurücksetzen</button>
         </div>
-        <p class="field__hint">Mit Ziel rechnet der Plan vom Renntag rückwärts: Grundlage, Aufbau,
-        spezifische Phase, Taper. Ohne Ziel läuft er endlos in Vierwochenblöcken weiter.</p>
-
-        ${!s.race ? `<button type="button" class="btn btn--block" data-action="prefill-race">
-          Zugspitz Ultratrait 100K eintragen
-        </button>` : ''}
+        <p class="field__hint">Der Coach ist auf genau dieses Rennen ausgelegt: Er rechnet vom
+        Renntag rückwärts durch Grundlage, Aufbau, spezifische Phase und Taper. Datum, Distanz,
+        Höhenmeter und Limit steuern jede Einheit – ändere sie nur, wenn sich das Rennen ändert.</p>
 
         <div class="field">
           <label class="field__label" for="f-raceName">Name</label>
-          <input id="f-raceName" name="raceName" type="text" value="${esc((s.race && s.race.name) || '')}" placeholder="z. B. Zugspitz Ultratrail">
+          <input id="f-raceName" name="raceName" type="text" value="${esc(s.race.name)}" placeholder="z. B. Zugspitz Ultratrail">
         </div>
         <div class="row" style="gap:10px">
           <div class="field grow">
             <label class="field__label" for="f-raceDate">Renntag</label>
-            <input id="f-raceDate" name="raceDate" type="date" value="${esc((s.race && s.race.date) || '')}">
+            <input id="f-raceDate" name="raceDate" type="date" value="${esc(s.race.date)}">
           </div>
           <div class="field grow">
             <label class="field__label" for="f-raceStart">Startzeit</label>
-            <input id="f-raceStart" name="raceStart" type="time" value="${esc((s.race && s.race.startTime) || '08:00')}">
+            <input id="f-raceStart" name="raceStart" type="time" value="${esc(s.race.startTime)}">
           </div>
         </div>
-        ${numField('raceDistance', 'Distanz (km)', null, s.race && s.race.distanceKm, 'min="5" max="400" step="1"')}
-        ${numField('raceVert', 'Höhenmeter positiv', null, s.race && s.race.vertM, 'min="0" max="20000" step="1"')}
-        ${numField('raceLimit', 'Zeitlimit (h)', 'Die App peilt 88 % davon an – mit Reserve statt auf Kante.', s.race && s.race.limitHours, 'min="1" max="72" step="0.5"')}
+        ${numField('raceDistance', 'Distanz (km)', null, s.race.distanceKm, 'min="5" max="400" step="1"')}
+        ${numField('raceVert', 'Höhenmeter positiv', null, s.race.vertM, 'min="0" max="20000" step="1"')}
+        ${numField('raceLimit', 'Zeitlimit (h)', 'Die App peilt 88 % davon an – mit Reserve statt auf Kante.', s.race.limitHours, 'min="1" max="72" step="0.5"')}
 
         <button class="btn btn--primary btn--block" type="submit" data-action="save-race">Ziel speichern</button>
       </div>
@@ -488,7 +484,6 @@ export function settingsSheet(ctx) {
 
 export function racePlanSheet(ctx) {
   const race = ctx.state.settings.race;
-  if (!race) return `<div class="sheet__inner">${head('Rennplan')}<div class="empty">Kein Ziel hinterlegt.</div></div>`;
 
   const plan = racePlan(race);
   const cd = countdown(race, ctx.date);

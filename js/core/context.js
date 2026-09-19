@@ -87,7 +87,7 @@ export function sleepTargetFor(isoDate) {
 const MOVABLE = ['long', 'long_b', 'intensiv'];
 
 function suggestMove(plan, entry, directive, isoDate) {
-  if (!plan.race || !entry || directive.volume >= 1) return null;
+  if (!entry || directive.volume >= 1) return null;
   if (!MOVABLE.includes(entry.slot)) return null;
 
   const later = plan.days.filter((d) => d.date > isoDate

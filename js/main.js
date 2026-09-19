@@ -286,15 +286,20 @@ function saveRace(form) {
   if (!date) { toast('Ohne Renntag kein Ziel'); return; }
   if (date <= todayIso()) { toast('Der Renntag muss in der Zukunft liegen'); return; }
 
+  // Der ganze Plan hängt an den Höhenmetern: Ohne sie gäbe es keine
+  // Bergeinheit, keine Steigrate und keine Bergab-Toleranz.
+  const vertM = num(form, 'raceVert');
+  if (!vertM) { toast('Ohne Höhenmeter kann der Coach nicht planen'); return; }
+
   store.update((s) => {
     s.settings.race = {
       ...DEFAULT_RACE,
-      ...(s.settings.race || {}),
+      ...s.settings.race,
       name: name || 'Zielrennen',
       date,
       startTime: form.elements.raceStart.value || '08:00',
       distanceKm: num(form, 'raceDistance') || DEFAULT_RACE.distanceKm,
-      vertM: num(form, 'raceVert') || 0,
+      vertM,
       limitHours: num(form, 'raceLimit') || DEFAULT_RACE.limitHours,
     };
   });
@@ -354,16 +359,10 @@ const actions = {
   'prefill-race': () => {
     store.update((s) => { s.settings.race = { ...DEFAULT_RACE }; });
     ctxBuilder.invalidate();
-    toast('Rennen eingetragen – Werte prüfen und speichern');
+    toast('Renndaten zurückgesetzt');
     render();
   },
 
-  'clear-race': () => {
-    store.update((s) => { s.settings.race = null; });
-    ctxBuilder.invalidate();
-    toast('Ziel entfernt');
-    render();
-  },
   'new-task': () => { app.sheet = { type: 'task', payload: null }; render(); },
   'new-marker': () => { app.sheet = { type: 'marker' }; render(); },
   'close-sheet': () => { app.sheet = null; app.draft = {}; render(); },

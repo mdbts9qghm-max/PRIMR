@@ -11,11 +11,12 @@
 import { addDays, weekStart, daysBetween, clamp, round } from './util.js';
 import { shiftDay, trainingWindow, dutyMinutes, rawFor } from './shift.js';
 import {
-  intensivSession, longRun, easyRun, strengthSession, mobilitySession, restDay, sickDay,
-  vertSession, downhillSession, timeOnFeet, backToBack, raceSession, HARD_SLOTS,
+  easyRun, strengthSession, mobilitySession, restDay, sickDay,
+  hillSession, downhillSession, timeOnFeet, backToBack, raceSession, HARD_SLOTS,
 } from './library.js';
 import {
-  weeksUntil, phaseFor, vertTarget, volumeFactor, features, racePlan, weeklyMinutes, longShare, isRaceDay,
+  DEFAULT_RACE, weeksUntil, phaseFor, vertTarget, volumeFactor, features, racePlan,
+  weeklyMinutes, longShare, isRaceDay,
 } from './race.js';
 
 // long_b ist der zweite lange Tag in Folge. Er existiert nur in der
@@ -95,12 +96,15 @@ export function weekIndex(planStartIso, isoDate) {
  * Von Block zu Block steigt die Basis um 5 %, gedeckelt beim 2,6-fachen Start.
  */
 /**
- * Was dieses Wochenziel vom Rennen her betrachtet bedeutet. Ohne Zielrennen
- * gibt es keinen Kontext und der Plan läuft wie bisher endlos weiter.
+ * Was dieses Wochenziel vom Rennen her betrachtet bedeutet.
+ *
+ * Der Plan ist auf genau ein Rennen ausgelegt; ohne Ziel gäbe es keinen
+ * Maßstab für Umfang, Höhenmeter und Phase. Fehlt eines – etwa nach dem
+ * Einspielen einer alten Sicherung –, greift das hinterlegte Standardrennen,
+ * statt in einen allgemeinen Plan zurückzufallen.
  */
 export function raceContext(settings, monday) {
-  const race = settings.race;
-  if (!race || !race.date) return null;
+  const race = settings.race && settings.race.date ? settings.race : DEFAULT_RACE;
   const weeksOut = weeksUntil(race.date, monday);
   const weeksTrained = weekIndex(settings.planStart, monday);
   const phase = phaseFor(weeksOut);
@@ -129,14 +133,9 @@ export function progression(w, settings, rc) {
   const inBlock = w % 4;
   const weekFactor = [1, 1.1, 1.2, 0.72][inBlock];
 
-  // Mit Ziel richtet sich der Grundumfang nach dem Renntermin, ohne Ziel
-  // wächst er wie bisher endlos in Fünf-Prozent-Schritten je Block.
-  const base = rc
-    ? weeklyMinutes(rc.race, start, rc.weeksOut, rc.weeksTrained)
-    : Math.min(start * 2.6, start * 1.05 ** block);
-
-  const weekly = Math.round(base * weekFactor * (rc ? rc.volumeFactor : 1));
-  const share = rc ? longShare(rc.weeksOut, rc.backToBackWeek) : 0.4;
+  const base = weeklyMinutes(rc.race, start, rc.weeksOut, rc.weeksTrained);
+  const weekly = Math.round(base * weekFactor * rc.volumeFactor);
+  const share = longShare(rc.weeksOut, rc.backToBackWeek);
 
   const vert = vertBudget(rc, settings, weekly);
 
@@ -144,7 +143,7 @@ export function progression(w, settings, rc) {
     week: w,
     block,
     inBlock,
-    phase: rc ? rc.phase.label : ['Aufbau', 'Volumen', 'Intensität', 'Entlastung'][inBlock],
+    phase: rc.phase.label,
     blockPhase: ['Aufbau', 'Volumen', 'Intensität', 'Entlastung'][inBlock],
     deload: inBlock === 3,
     weeklyRunMinutes: weekly,
@@ -159,9 +158,9 @@ export function progression(w, settings, rc) {
 /**
  * Obergrenze je Einheitenart.
  *
- * Eine Zahl für alles funktioniert nur ohne Ziel. Ein Longrun über vier
- * Stunden passt in keine 90-Minuten-Schranke, eine Krafteinheit soll aber
- * auch an einem freien Tag nicht ausufern.
+ * Eine Zahl für alles reicht nicht. Ein Longrun über vier Stunden passt in
+ * keine 90-Minuten-Schranke, eine Krafteinheit soll aber auch an einem
+ * freien Tag nicht ausufern.
  */
 /**
  * Wiederholungen der Bergab-Einheit. Sie wächst mit der Nähe zum Rennen,
@@ -197,9 +196,11 @@ export function vertBudget(rc, settings, weeklyRunMinutes) {
   const downhill = canDownhill ? downhillReps(rc, hill) * hill : 0;
   let rest = Math.max(0, rc.vertM - downhill);
 
-  // Eine eigene Bergeinheit lohnt erst ab drei Wiederholungen. Reicht es
-  // nicht, wandern die Höhenmeter in die langen und lockeren Läufe.
-  const hills = rest * 0.45 >= hill * 3 ? Math.round(rest * 0.45) : 0;
+  // Die Bergeinheit bekommt immer ihren Anteil – sie ist die einzige harte
+  // Einheit im Plan und findet ausnahmslos am Anstieg statt. Reicht der
+  // Anteil nicht für Wiederholungen, wird daraus ein Berg-Dauerlauf; die
+  // Höhenmeter bleiben dieselben und die Woche trifft ihr Ziel.
+  const hills = Math.round(rest * 0.45);
   rest -= hills;
 
   const easy = downhill ? 0 : Math.round(rest * 0.2);
@@ -214,7 +215,6 @@ export function vertBudget(rc, settings, weeklyRunMinutes) {
 }
 
 export function capFor(slot, settings, rc, base) {
-  if (!rc) return base;
   // Nach dem Rennen bleibt alles kurz, egal welche Einheit.
   if (rc.features.recovery) return Math.min(base, 60 + Math.max(0, 3 + rc.weeksOut) * 15);
   if (slot.startsWith('kraft')) return base;
@@ -226,33 +226,35 @@ function buildSession(slot, w, prog, settings, minutesFree, rc) {
   const hill = settings.hillMeters || 120;
 
   switch (slot) {
-    case 'long': {
-      const minutes = clamp(prog.longMinutes, 30, minutesFree);
-      // Time on Feet ergibt erst ab zwei Stunden einen Sinn. Vorher ist es
-      // ein Longrun mit großen Worten.
-      if (rc && rc.features.timeOnFeet && minutes >= 120) {
-        return timeOnFeet(minutes, prog.vert.long, rc.plan, { night: rc.nightWeek });
-      }
-      return longRun(w, minutes, settings.easyPace, prog.vert.long);
-    }
-    case 'long_b': {
-      if (!rc || !rc.backToBackWeek || prog.longMinutes < 120) return null;
+    case 'long':
+      // Immer dieselbe Einheit, nur länger: Sie wächst über die Vorbereitung
+      // von unter einer Stunde auf über vier.
+      return timeOnFeet(
+        clamp(prog.longMinutes, 30, minutesFree),
+        prog.vert.long,
+        rc.plan,
+        { night: rc.nightWeek },
+      );
+    case 'long_b':
+      if (!rc.backToBackWeek || prog.longMinutes < 120) return null;
       return backToBack(clamp(prog.longBMinutes, 40, minutesFree), prog.vert.longB, rc.plan);
-    }
-    case 'intensiv': {
-      if (prog.vert.hills > 0) return vertSession(prog.vert.hills, hill);
-      // Mit Bergziel fällt Zone 5 weg, in der spezifischen Phase auch Zone 4.
-      const maxZone = rc ? (rc.phase.key === 'spezifisch' ? 3 : 4) : null;
-      return intensivSession(w, Math.min(prog.intensivMinutes + 22, minutesFree), { maxZone });
-    }
-    case 'easy': {
+    case 'intensiv':
+      // Alles Harte findet am Anstieg statt. Reicht das Höhenmeter-Budget
+      // nicht für Wiederholungen, wird daraus ein Berg-Dauerlauf.
+      if (!prog.vert.hills) return null;
+      return hillSession(
+        w,
+        prog.vert.hills,
+        hill,
+        Math.min(prog.intensivMinutes + 30, minutesFree),
+      );
+    case 'easy':
       if (prog.vert.downhill > 0) {
         return downhillSession(Math.round(prog.vert.downhill / hill), hill);
       }
       return easyRun(w, clamp(prog.easyMinutes, 20, minutesFree), settings.easyPace, prog.vert.easy);
-    }
     default:
-      return strengthSession(slot, w, minutesFree, Boolean(rc && rc.race.vertM));
+      return strengthSession(slot, w, minutesFree);
   }
 }
 
