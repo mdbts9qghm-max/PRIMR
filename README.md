@@ -124,6 +124,12 @@ Ohne Ziel läuft der Plan endlos in Vierwochenblöcken weiter. Mit einem Ziel
 | Rennwoche | 0 | Nur lockeres Laufen, dann das Rennen |
 | Regeneration | danach | Vier Wochen ohne harte Reize, alles kurz |
 
+### Start der Vorbereitung
+
+Unter *Einstellungen → Training* steht, ab wann die Steigerung zählt. Liegt der
+Tag in der Zukunft, hält der Plan bis dahin den Startumfang und weist auf beiden
+Tabs darauf hin. Rückwirkend gesetzt beginnt die Progression entsprechend früher.
+
 ### Was der Kalender verlangt und was der Körper trägt
 
 Die Phasen setzen voraus, dass man mit der passenden Grundlage in ihnen

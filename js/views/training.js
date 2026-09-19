@@ -73,6 +73,15 @@ export function render(ctx) {
   return `
   <div class="view">
 
+    ${ctx.beforeStart ? `<div class="card">
+      <div class="section-label">Noch nicht gestartet</div>
+      <p class="small secondary" style="margin-top:8px">
+        Die Vorbereitung beginnt am <strong>${esc(longDate(ctx.beforeStart))}</strong>. Bis dahin zeigt
+        der Plan den Startumfang; die Steigerung zählt erst ab diesem Tag. Die Tage davor sind gut
+        für lockere Läufe und dafür, die Ausgangswerte ehrlich einzuschätzen.
+      </p>
+    </div>` : ''}
+
     ${race ? `
     <div class="card card--accent">
       <div class="row row--between" style="align-items:flex-start">

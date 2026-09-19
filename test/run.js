@@ -9,7 +9,7 @@ import {
 } from '../js/core/plan.js';
 import {
   phaseFor, volumePlan, vertTarget, phaseVert, features, MAX_WEEKLY_GROWTH,
-  zoneTargets, vertRateTarget, terrainSplit, racePlan as racePlanFn,
+  zoneTargets, vertRateTarget, terrainSplit, racePlan as racePlanFn, weeksUntil as weeksUntilFn,
 } from '../js/core/race.js';
 import { HARD_SLOTS } from '../js/core/library.js';
 import { KIND_LABEL } from '../js/ui/components.js';
@@ -540,6 +540,31 @@ test('Der Rennplan rechnet Flachäquivalent und Verpflegung aus', () => {
   assert.ok(p.targetHours < RACE.limitHours, 'kein Puffer zum Limit');
   assert.equal(p.carbsPerHour[0], 60);
   assert.ok(p.carbsTotal[0] > 1000);
+});
+
+/* ---------- Start der Vorbereitung ---------- */
+
+test('Ein späterer Start verschiebt die Steigerung, ohne sie zu stauchen', () => {
+  const frueh = { ...RACE_SETTINGS, planStart: '2026-09-21' };
+  const spaet = { ...RACE_SETTINGS, planStart: '2026-09-28' };
+  // Erste Trainingswoche: beide beginnen beim Startumfang.
+  assert.equal(planWeek('2026-09-21', CONFIG, frueh).progression.weeklyRunMinutes,
+    planWeek('2026-09-28', CONFIG, spaet).progression.weeklyRunMinutes);
+});
+
+test('Vor dem Start bleibt der Plan beim Startumfang', () => {
+  const settings = { ...RACE_SETTINGS, planStart: '2026-10-05' };
+  const davor = planWeek('2026-09-21', CONFIG, settings);
+  assert.equal(davor.weekIndex, 0, 'negative Wochen müssen auf null gehen');
+  assert.equal(davor.progression.weeklyRunMinutes, planWeek('2026-10-05', CONFIG, settings).progression.weeklyRunMinutes);
+});
+
+test('Ein Start am 25.09. reicht für das Rennen aus', () => {
+  const out = weeksUntilFn(RACE.date, '2026-09-21');
+  const vp = volumePlan(RACE, 130, out);
+  assert.equal(vp.shortfallPct, 0, `Defizit ${vp.shortfallPct} %`);
+  assert.ok(vp.growthPerWeek < 10, `${vp.growthPerWeek} % je Woche wäre zu viel`);
+  assert.ok(out >= 30, `nur ${out} Wochen Vorlauf`);
 });
 
 /* ---------- Rollende Anzeige ---------- */

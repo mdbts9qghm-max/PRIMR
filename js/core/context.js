@@ -169,6 +169,9 @@ export function build(isoDate = todayIso()) {
     session: adjusted ? adjusted.session : null,
     ramp: entry ? entry.ramp : null,
     tomorrow,
+    // Liegt der Start der Vorbereitung noch vor uns, sagt die App das –
+    // sonst sieht der Plan aus, als liefe er schon.
+    beforeStart: isoDate < s.settings.planStart ? s.settings.planStart : null,
     // Longrun und intensive Einheit tragen die Woche. Fällt eine davon aus,
     // fehlt der Reiz; die lockeren Einheiten lassen sich dagegen ersetzen.
     isKeySession: Boolean(entry && ['long', 'long_b', 'intensiv'].includes(entry.slot)),

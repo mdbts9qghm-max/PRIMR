@@ -196,7 +196,8 @@ export function render(ctx) {
 
     ${ctx.entry && ctx.session && ctx.session.kind !== 'rest' && ctx.session.kind !== 'sick' ? `
     <div class="row wrap" style="gap:6px;margin:2px 0 -6px">
-      ${rc ? `<span class="chip">${esc(rc.phase.label)} · noch ${rc.weeksOut} Wochen</span>` : ''}
+      ${ctx.beforeStart ? `<span class="chip">Vorbereitung ab ${esc(shortDate(ctx.beforeStart))}</span>`
+        : rc ? `<span class="chip">${esc(rc.phase.label)} · noch ${rc.weeksOut} Wochen</span>` : ''}
       ${ctx.isKeySession ? '<span class="chip chip--on">Schlüsseleinheit der Woche</span>' : ''}
       ${ctx.session.vertM ? `<span class="chip">${ctx.session.vertM} hm</span>` : ''}
     </div>` : ''}

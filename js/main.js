@@ -228,6 +228,8 @@ function saveSettings(form) {
       const v = num(form, key);
       if (v != null) s.settings[key] = v;
     });
+    const start = form.elements.planStart ? form.elements.planStart.value : '';
+    if (start) s.settings.planStart = start;
     const weight = num(form, 'weightKg');
     if (weight != null) s.profile.weightKg = weight;
   });

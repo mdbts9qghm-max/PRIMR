@@ -396,6 +396,12 @@ export function settingsSheet(ctx) {
     <form id="settings-form" class="stack">
       <div class="card stack">
         <div class="section-label">Training</div>
+        <div class="field">
+          <label class="field__label" for="f-planStart">Start der Vorbereitung</label>
+          <input id="f-planStart" name="planStart" type="date" value="${esc(s.planStart || '')}">
+          <div class="field__hint">Ab hier zählt die Steigerung. Liegt der Tag in der Zukunft,
+          hält der Plan bis dahin den Startumfang und legt erst danach los.</div>
+        </div>
         ${numField('startRunMinutes', 'Start-Laufumfang je Woche (min)', 'Basis der Progression. Bei 0–20 km pro Woche sind 130 min ein realistischer Start.', s.startRunMinutes, 'min="40" max="600" step="5"')}
         ${numField('sessionMinutes', 'Maximale Dauer je Einheit (min)', 'Begrenzt, was der Planer in ein Zeitfenster legt.', s.sessionMinutes, 'min="20" max="240" step="5"')}
         ${numField('gymTravelMinutes', 'Anfahrt zum Gym (min, einfach)', 'Wird bei Krafteinheiten doppelt vom Zeitfenster abgezogen. Läufe starten an der Haustür.', s.gymTravelMinutes, 'min="0" max="90" step="5"')}
